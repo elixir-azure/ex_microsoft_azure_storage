@@ -4,7 +4,47 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   alias Microsoft.Azure.Storage.BlobClient
   alias Microsoft.Azure.Storage.DateTimeUtils
 
-  defp hdr(headers, name), do: "#{name}:" <> headers[name]
+  def create_container(accountname, accountkey, name) do
+    name = name |> String.downcase()
+
+    cloudEnvironmentSuffix = "core.windows.net"
+    host = "#{accountname}.blob.#{cloudEnvironmentSuffix}"
+    resourcePath = "/#{name}/"
+    query = %{restype: "container"} |> URI.encode_query()
+    uri = "https://#{host}#{resourcePath}?#{query}" |> URI.parse()
+
+    headers = %{
+      "x-ms-date" => DateTimeUtils.utc_now(),
+      "x-ms-version" => "2015-04-05"
+    }
+
+    hdr = fn headers, name -> "#{name}:" <> headers[name] end
+
+    signature =
+      SignedData.new()
+      |> Map.put(:verb, "PUT")
+      |> Map.put(
+        :canonicalizedHeaders,
+        hdr.(headers, "x-ms-date") <> "\n" <> hdr.(headers, "x-ms-version")
+      )
+      |> Map.put(
+        :canonicalizedResource,
+        "/#{accountname}#{uri.path}\n" <>
+          (uri.query
+           |> URI.decode_query()
+           |> Enum.sort_by(& &1)
+           |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
+      )
+      |> SignedData.sign(accountkey)
+
+    client =
+      BlobClient.new(
+        uri |> (fn x -> "#{x.scheme}://#{x.host}:#{x.port}#{x.path}" end).(),
+        headers |> Map.put("Authorization", "SharedKey #{accountname}:#{signature}")
+      )
+
+    %{status: 201} = client |> BlobClient.put("?#{uri.query}", "")
+  end
 
   def list_containers(accountname, accountkey) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
@@ -20,11 +60,18 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       "x-ms-version" => "2015-04-05"
     }
 
+    hdr = fn headers, name -> "#{name}:" <> headers[name] end
+
     signature =
       SignedData.new()
       |> Map.put(:verb, "GET")
-      |> Map.put(:canonicalizedHeaders, hdr(headers, "x-ms-date") <> "\n" <> hdr(headers, "x-ms-version"))
-      |> Map.put(:canonicalizedResource, "/#{accountname}#{uri.path}\n" <>
+      |> Map.put(
+        :canonicalizedHeaders,
+        hdr.(headers, "x-ms-date") <> "\n" <> hdr.(headers, "x-ms-version")
+      )
+      |> Map.put(
+        :canonicalizedResource,
+        "/#{accountname}#{uri.path}\n" <>
           (uri.query
            |> URI.decode_query()
            |> Enum.sort_by(& &1)
