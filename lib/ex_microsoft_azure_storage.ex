@@ -16,6 +16,7 @@ defmodule ExMicrosoftAzureStorage do
   end
 
   def hello do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
     accountkey = "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env()
     accountname = "SAMPLE_STORAGE_ACCOUNT_NAME" |> System.get_env()
     cloudEnvironmentSuffix = "core.windows.net"
@@ -40,12 +41,8 @@ defmodule ExMicrosoftAzureStorage do
     range = ""
     canonicalizedHeaders = "x-ms-date:#{xMsDate}\nx-ms-version:#{xMsVersion}"
 
-    # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
 
-    uri =
-      url
-      |> URI.parse()
-      |> IO.inspect()
+    uri = url |> URI.parse()
 
     canonicalizedResource =
       "/#{accountname}" <>
@@ -90,33 +87,19 @@ defmodule ExMicrosoftAzureStorage do
       client
       |> BlobClient.get("?#{uri.query}")
 
-    # """
-    # <EnumerationResults ServiceEndpoint="https://erlang.blob.core.windows.net/">
-    #   <Containers>
-    #     <Container>
-    #       <Name>otp</Name>
-    #       <Properties>
-    #         <Last-Modified>Thu, 27 Oct 2016 05:46:07 GMT</Last-Modified>
-    #         <Etag>"0x8D3FE2C8C8C182F"</Etag>
-    #         <LeaseStatus>unlocked</LeaseStatus>
-    #         <LeaseState>available</LeaseState>
-    #       </Properties>
-    #     </Container>
-    #     <Container>
-    #       <Name>philipp</Name>
-    #       <Properties>
-    #         <Last-Modified>Tue, 21 Feb 2017 20:39:13 GMT</Last-Modified>
-    #         <Etag>"0x8D45A99B2695859"</Etag>
-    #         <LeaseStatus>unlocked</LeaseStatus>
-    #         <LeaseState>available</LeaseState>
-    #       </Properties>
-    #     </Container>
-    #   </Containers>
-    #   <NextMarker />
-    # </EnumerationResults>
-    # """
-
     bodyXml
-    |> xpath(~x"/EnumerationResults/Containers/Container/Name/text()"l)
+    |> xmap(
+      containers: [
+        ~x"/EnumerationResults/Containers/Container"l,
+        name: ~x"./Name/text()",
+        properties: [
+          ~x"./Properties",
+          lastModified: ~x"./Last-Modified/text()",
+          eTag: ~x"./Etag/text()",
+          leaseStatus: ~x"./LeaseStatus/text()",
+          leaseState: ~x"./LeaseState/text()"
+        ]
+      ]
+    )
   end
 end

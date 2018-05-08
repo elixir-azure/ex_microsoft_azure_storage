@@ -22,12 +22,13 @@ defmodule Microsoft.Azure.Storage.ApiVersion do
     end
   end
 
+  def compare(%__MODULE__{year: a}, %__MODULE__{year: b}) when a < b, do: :older
+  def compare(%__MODULE__{year: a}, %__MODULE__{year: b}) when a > b, do: :newer
+  def compare(%__MODULE__{month: a}, %__MODULE__{month: b}) when a < b, do: :older
+  def compare(%__MODULE__{month: a}, %__MODULE__{month: b}) when a > b, do: :newer
+  def compare(%__MODULE__{day: a}, %__MODULE__{day: b}) when a < b, do: :older
+  def compare(%__MODULE__{day: a}, %__MODULE__{day: b}) when a > b, do: :newer
 
-  def compare(%__MODULE__{year: a}, %__MODULE__{year: b}) when a<b, do: :older
-  def compare(%__MODULE__{year: a}, %__MODULE__{year: b}) when a>b, do: :newer
-  def compare(%__MODULE__{month: a}, %__MODULE__{month: b}) when a<b, do: :older
-  def compare(%__MODULE__{month: a}, %__MODULE__{month: b}) when a>b, do: :newer
-  def compare(%__MODULE__{day: a}, %__MODULE__{day: b}) when a<b, do: :older
-  def compare(%__MODULE__{day: a}, %__MODULE__{day: b}) when a>b, do: :newer
-  def compare(%__MODULE__{year: y, month: m, day: d}, %__MODULE__{year: y, month: m, day: d}), do: :equal
+  def compare(%__MODULE__{year: y, month: m, day: d}, %__MODULE__{year: y, month: m, day: d}),
+    do: :equal
 end
