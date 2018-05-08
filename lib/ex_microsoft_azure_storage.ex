@@ -1,5 +1,6 @@
 defmodule ExMicrosoftAzureStorage do
   import SweetXml
+  alias Microsoft.Azure.Storage.ApiVersion.Models.BlobStorageSignedFields
 
   defmodule BlobClient do
     use Tesla
@@ -27,54 +28,22 @@ defmodule ExMicrosoftAzureStorage do
     url = "https://#{host}#{resourcePath}?#{query}"
     xMsDate = DateTime.utc_now() |> Microsoft.Azure.Storage.DateTimeUtils.datetime_to_string()
     xMsVersion = "2015-04-05"
-    verb = "GET"
-    contentEncoding = ""
-    contentLanguage = ""
-    contentLength = ""
-    contentMD5 = ""
-    contentType = ""
-    date = ""
-    ifModifiedSince = ""
-    ifMatch = ""
-    ifNoneMatch = ""
-    ifUnmodifiedSince = ""
-    range = ""
-    canonicalizedHeaders = "x-ms-date:#{xMsDate}\nx-ms-version:#{xMsVersion}"
-
 
     uri = url |> URI.parse()
 
-    canonicalizedResource =
-      "/#{accountname}" <>
-        uri.path <>
-        "\n" <>
-        (uri.query
-         |> URI.decode_query()
-         |> Enum.sort_by(& &1)
-         |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
-
-    stringToSign =
-      [
-        verb,
-        contentEncoding,
-        contentLanguage,
-        contentLength,
-        contentMD5,
-        contentType,
-        date,
-        ifModifiedSince,
-        ifMatch,
-        ifNoneMatch,
-        ifUnmodifiedSince,
-        range,
-        canonicalizedHeaders,
-        canonicalizedResource
-      ]
-      |> Enum.join("\n")
-
     signature =
-      :crypto.hmac(:sha256, accountkey |> Base.decode64!(), stringToSign)
-      |> Base.encode64()
+      BlobStorageSignedFields.new()
+      |> Map.put(:verb, "GET")
+      |> Map.put(:canonicalizedHeaders, "x-ms-date:#{xMsDate}\nx-ms-version:#{xMsVersion}")
+      |> Map.put(
+        :canonicalizedResource,
+        "/#{accountname}#{uri.path}\n" <>
+          (uri.query
+           |> URI.decode_query()
+           |> Enum.sort_by(& &1)
+           |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
+      )
+      |> BlobStorageSignedFields.sign(accountkey)
 
     client =
       BlobClient.new(uri |> (fn x -> "#{x.scheme}://#{x.host}:#{x.port}#{x.path}" end).(), %{
@@ -91,13 +60,13 @@ defmodule ExMicrosoftAzureStorage do
     |> xmap(
       containers: [
         ~x"/EnumerationResults/Containers/Container"l,
-        name: ~x"./Name/text()",
+        name: ~x"./Name/text()"s,
         properties: [
           ~x"./Properties",
-          lastModified: ~x"./Last-Modified/text()",
-          eTag: ~x"./Etag/text()",
-          leaseStatus: ~x"./LeaseStatus/text()",
-          leaseState: ~x"./LeaseState/text()"
+          lastModified: ~x"./Last-Modified/text()"s,
+          eTag: ~x"./Etag/text()"s,
+          leaseStatus: ~x"./LeaseStatus/text()"s,
+          leaseState: ~x"./LeaseState/text()"s
         ]
       ]
     )
