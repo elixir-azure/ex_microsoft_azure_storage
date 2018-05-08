@@ -1,6 +1,7 @@
 defmodule ExMicrosoftAzureStorage do
   import SweetXml
   alias Microsoft.Azure.Storage.ApiVersion.Models.BlobStorageSignedFields
+  alias Microsoft.Azure.Storage.DateTimeUtils
 
   defmodule BlobClient do
     use Tesla
@@ -25,11 +26,10 @@ defmodule ExMicrosoftAzureStorage do
     host = "#{accountname}.blob.#{cloudEnvironmentSuffix}"
     resourcePath = "/"
     query = %{comp: "list"} |> URI.encode_query()
-    url = "https://#{host}#{resourcePath}?#{query}"
-    xMsDate = DateTime.utc_now() |> Microsoft.Azure.Storage.DateTimeUtils.datetime_to_string()
-    xMsVersion = "2015-04-05"
+    uri = "https://#{host}#{resourcePath}?#{query}" |> URI.parse()
 
-    uri = url |> URI.parse()
+    xMsDate = DateTimeUtils.utc_now()
+    xMsVersion = "2015-04-05"
 
     signature =
       BlobStorageSignedFields.new()
