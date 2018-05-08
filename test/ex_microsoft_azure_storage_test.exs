@@ -1,6 +1,7 @@
 defmodule ExMicrosoftAzureStorageTest do
   use ExUnit.Case
   doctest ExMicrosoftAzureStorage
+  alias Microsoft.Azure.Storage.ApiVersion
 
   import SweetXml
 
@@ -96,15 +97,32 @@ defmodule ExMicrosoftAzureStorageTest do
            }
   end
 
-  test "ce" do
-    "fR5pqJJzUC/H4rXDmkbQSL0JO94="
-    |> Base.decode64!()
-    |> Base.encode16()
-    |> IO.inspect()
+  test "api_version comparison" do
+    old_y = "2017-01-20" |> ApiVersion.parse()
+    new_y = "2018-01-20" |> ApiVersion.parse()
+    old_m = "2018-01-20" |> ApiVersion.parse()
+    new_m = "2018-03-20" |> ApiVersion.parse()
+    old_d = "2018-03-19" |> ApiVersion.parse()
+    new_d = "2018-03-20" |> ApiVersion.parse()
 
-    "7d1e69a89273502fc7e2b5c39a46d048bd093bde"
-    |> Base.decode16!(case: :mixed)
-    |> Base.encode64()
-    |> IO.inspect()
+    assert :older == old_y |> ApiVersion.compare(new_y)
+    assert :newer == new_y |> ApiVersion.compare(old_y)
+    assert :older == old_m |> ApiVersion.compare(new_m)
+    assert :newer == new_m |> ApiVersion.compare(old_m)
+    assert :older == old_d |> ApiVersion.compare(new_d)
+    assert :newer == new_d |> ApiVersion.compare(old_d)
+    assert :equal == new_d |> ApiVersion.compare(new_d)
   end
+
+  # test "ce" do
+  #   "fR5pqJJzUC/H4rXDmkbQSL0JO94="
+  #   |> Base.decode64!()
+  #   |> Base.encode16()
+  #   |> IO.inspect()
+
+  #   "7d1e69a89273502fc7e2b5c39a46d048bd093bde"
+  #   |> Base.decode16!(case: :mixed)
+  #   |> Base.encode64()
+  #   |> IO.inspect()
+  # end
 end

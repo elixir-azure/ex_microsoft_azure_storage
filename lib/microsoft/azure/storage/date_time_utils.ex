@@ -1,6 +1,6 @@
 defmodule Microsoft.Azure.Storage.DateTimeUtils do
-  defp two_digits(i) when is_integer(i) and 0 <= i and i < 10, do: "0#{i}"
-  defp two_digits(i) when is_integer(i) and 10 <= i and i < 100, do: "#{i}"
+  def two_digits(i) when is_integer(i) and 0 <= i and i < 10, do: "0#{i}"
+  def two_digits(i) when is_integer(i) and 10 <= i and i < 100, do: "#{i}"
 
   @months_names [
     "Jan",
