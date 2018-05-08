@@ -1,0 +1,6 @@
+%{
+  "ibrowse": {:hex, :ibrowse, "4.4.0", "2d923325efe0d2cb09b9c6a047b2835a5eda69d8a47ed6ff8bc03628b764e991", [:rebar3], [], "hexpm"},
+  "mime": {:hex, :mime, "1.2.0", "78adaa84832b3680de06f88f0997e3ead3b451a440d183d688085be2d709b534", [:mix], [], "hexpm"},
+  "sweet_xml": {:hex, :sweet_xml, "0.6.5", "dd9cde443212b505d1b5f9758feb2000e66a14d3c449f04c572f3048c66e6697", [:mix], [], "hexpm"},
+  "tesla": {:hex, :tesla, "0.10.0", "e588c7e7f1c0866c81eeed5c38f02a4a94d6309eede336c1e6ca08b0a95abd3f", [:mix], [{:exjsx, ">= 0.1.0", [hex: :exjsx, repo: "hexpm", optional: true]}, {:fuse, "~> 2.4", [hex: :fuse, repo: "hexpm", optional: true]}, {:hackney, "~> 1.6", [hex: :hackney, repo: "hexpm", optional: true]}, {:ibrowse, "~> 4.2", [hex: :ibrowse, repo: "hexpm", optional: true]}, {:mime, "~> 1.0", [hex: :mime, repo: "hexpm", optional: false]}, {:poison, ">= 1.0.0", [hex: :poison, repo: "hexpm", optional: true]}], "hexpm"},
+}
