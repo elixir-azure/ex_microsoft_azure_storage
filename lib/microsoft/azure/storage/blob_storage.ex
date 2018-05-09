@@ -211,7 +211,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     query =
       opts
       |> Keyword.merge(main_query)
-      |> Enum.filter(fn ({_,value}) -> value != nil && value != "" end)
+      |> Enum.filter(fn {_, value} -> value != nil && value != "" end)
       |> Map.new()
       |> URI.encode_query()
       |> IO.inspect()

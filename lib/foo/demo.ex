@@ -1,7 +1,6 @@
 defmodule Foo.Demo do
   import Foo.RequestBuilder
 
-
   def run() do
     subscription_id = "123"
     api_version = "2018-01-01"
@@ -18,12 +17,8 @@ defmodule Foo.Demo do
     |> IO.inspect()
     |> (&Foo.Connection.request(connection, &1)).()
     |> IO.inspect()
+
     # |> decode(%Foo.Model.Outer{})
     # |> IO.inspect()
-
-
-
-
-
   end
 end
