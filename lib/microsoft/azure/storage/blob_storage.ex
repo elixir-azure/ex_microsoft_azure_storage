@@ -54,7 +54,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     |> RequestBuilder.add_param(:query, :comp, "list")
     |> RequestBuilder.add_header("x-ms-date", DateTimeUtils.utc_now())
     |> RequestBuilder.add_header("x-ms-version", @storage_api_version)
-    |> RequestBuilder.body("")
     |> RequestBuilder.add_signature()
     |> Enum.into([])
     |> (&RestClient.request(connection(context), &1)).()
@@ -79,43 +78,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   def get_container_properties(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-properties
 
-    host = context |> AzureStorageContext.blob_endpoint()
-    resourcePath = "/#{container_name}"
-    query = %{restype: "container"} |> URI.encode_query()
-    uri = "https://#{host}#{resourcePath}?#{query}" |> URI.parse()
-    base_uri = "#{uri.scheme}://#{uri.host}:#{uri.port}"
-    request_path = "#{uri.path}?#{uri.query}"
-
-    headers = %{
-      "x-ms-date" => DateTimeUtils.utc_now(),
-      "x-ms-version" => @storage_api_version
-    }
-
-    hdr = fn headers, name -> "#{name}:" <> headers[name] end
-
-    signature =
-      SignedData.new()
-      |> Map.put(:verb, "GET")
-      |> Map.put(
-        :canonicalizedHeaders,
-        hdr.(headers, "x-ms-date") <> "\n" <> hdr.(headers, "x-ms-version")
-      )
-      |> Map.put(
-        :canonicalizedResource,
-        "/#{context.account_name}#{uri.path}\n" <>
-          (uri.query
-           |> URI.decode_query()
-           |> Enum.sort_by(& &1)
-           |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
-      )
-      |> SignedData.sign(context.account_key)
-
-    client =
-      RestClient.new(
-        base_uri,
-        headers |> Map.put("Authorization", "SharedKey #{context.account_name}:#{signature}")
-      )
-
     %{
       status: 200,
       url: url,
@@ -126,7 +88,16 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         "x-ms-lease-status" => lease_status,
         "x-ms-request-id" => request_id
       }
-    } = client |> RestClient.get(request_path)
+    } = %{}
+    |> RequestBuilder.method(:get)
+    |> RequestBuilder.url("/#{container_name}")
+    |> RequestBuilder.add_storage_context(context)
+    |> RequestBuilder.add_param(:query, :restype, "container")
+    |> RequestBuilder.add_header("x-ms-date", DateTimeUtils.utc_now())
+    |> RequestBuilder.add_header("x-ms-version", @storage_api_version)
+    |> RequestBuilder.add_signature()
+    |> Enum.into([])
+    |> (&RestClient.request(connection(context), &1)).()
 
     {:ok,
      %{
