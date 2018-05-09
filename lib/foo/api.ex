@@ -12,5 +12,3 @@ defmodule Foo.Api do
     |> decode(%Foo.Model.Outer{})
   end
 end
-
-

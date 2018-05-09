@@ -1,6 +1,6 @@
 defmodule Foo.Model.Outer do
   @derive [Poison.Encoder]
-  defstruct [ :id, :inner ]
+  defstruct [:id, :inner]
 end
 
 defimpl Poison.Decoder, for: Foo.Model.Outer do
@@ -10,7 +10,7 @@ end
 
 defmodule Foo.Model.Inner do
   @derive [Poison.Encoder]
-  defstruct [ :"q", :"w", :"e" ]
+  defstruct [:q, :w, :e]
 end
 
 defimpl Poison.Decoder, for: Foo.Model.Inner do
