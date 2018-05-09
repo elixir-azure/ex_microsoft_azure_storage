@@ -23,7 +23,8 @@ defmodule ExMicrosoftAzureStorage.MixProject do
     [
       {:ibrowse, "~> 4.4"},
       {:tesla, "~> 0.8"},
-      {:sweet_xml, "~> 0.6.5"}
+      {:sweet_xml, "~> 0.6.5"},
+      {:named_args, "~> 0.1.1"}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
       # {:poison, ">= 1.0.0"},

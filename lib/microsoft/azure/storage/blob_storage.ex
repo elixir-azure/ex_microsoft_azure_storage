@@ -1,5 +1,6 @@
 defmodule Microsoft.Azure.Storage.BlobStorage do
   import SweetXml
+  use NamedArgs
 
   alias Microsoft.Azure.Storage.ApiVersion.Models.BlobStorageSignedFields, as: SignedData
   alias Microsoft.Azure.Storage.BlobClient
@@ -187,17 +188,31 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
      }}
   end
 
-  def list_blobs(context = %AzureStorageContext{}, container_name, opts \\ []) do
+  def list_blobs(
+        context = %AzureStorageContext{},
+        container_name,
+        opts \\ [
+          prefix: nil,
+          delimiter: nil,
+          marker: nil,
+          maxresults: nil,
+          timeout: nil,
+          include: "snapshots"
+        ]
+      ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-blobs
 
     host = context |> AzureStorageContext.blob_endpoint()
     resourcePath = "/#{container_name}"
+    main_query = [comp: "list", restype: "container"]
 
     query =
-      [comp: "list", restype: "container"]
-      |> Keyword.merge(opts)
+      opts
+      |> Keyword.merge(main_query)
+      |> Enum.filter(fn ({_,value}) -> value != nil && value != "" end)
       |> Map.new()
       |> URI.encode_query()
+      |> IO.inspect()
 
     uri = "https://#{host}#{resourcePath}?#{query}" |> URI.parse()
     base_uri = "#{uri.scheme}://#{uri.host}:#{uri.port}"
@@ -245,7 +260,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     {:ok,
      bodyXml
      |> xmap(
-       max_results: ~x"/EnumerationResults/MaxResults/text()"i,
+       max_results: ~x"/EnumerationResults/MaxResults/text()"s,
        next_marker: ~x"/EnumerationResults/NextMarker/text()"s,
        blobs: [
          ~x"/EnumerationResults/Blobs/Blob"l,
