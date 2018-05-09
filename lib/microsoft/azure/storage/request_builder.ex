@@ -68,6 +68,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   def decode(response, _struct), do: {:error, response}
 
   def add_signature(
+        # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
+
         data = %{
           method: method,
           url: url,

@@ -10,12 +10,12 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
   @storage_api_version "2015-04-05"
 
-  def create_container(context = %AzureStorageContext{}, container_name) do
-    connection =
-      context
-      |> AzureStorageContext.blob_endpoint_url()
-      |> RestClient.new()
+  defp connection(context = %AzureStorageContext{}), do:
+  context
+  |> AzureStorageContext.blob_endpoint_url()
+  |> RestClient.new()
 
+  def create_container(context = %AzureStorageContext{}, container_name) do
     %{
       status: 201,
       url: url,
@@ -35,7 +35,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> RequestBuilder.body("")
       |> RequestBuilder.add_signature()
       |> Enum.into([])
-      |> (&RestClient.request(connection, &1)).()
+      |> (&RestClient.request(connection(context), &1)).()
 
     {:ok,
      %{
@@ -47,46 +47,17 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   end
 
   def list_containers(context = %AzureStorageContext{}) do
-    # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
-
-    host = context |> AzureStorageContext.blob_endpoint()
-    resourcePath = "/"
-    query = %{comp: "list"} |> URI.encode_query()
-    uri = "https://#{host}#{resourcePath}?#{query}" |> URI.parse()
-    base_uri = "#{uri.scheme}://#{uri.host}:#{uri.port}"
-    request_path = "#{uri.path}?#{uri.query}"
-
-    headers = %{
-      "x-ms-date" => DateTimeUtils.utc_now(),
-      "x-ms-version" => @storage_api_version
-    }
-
-    hdr = fn headers, name -> "#{name}:" <> headers[name] end
-
-    signature =
-      SignedData.new()
-      |> Map.put(:verb, "GET")
-      |> Map.put(
-        :canonicalizedHeaders,
-        hdr.(headers, "x-ms-date") <> "\n" <> hdr.(headers, "x-ms-version")
-      )
-      |> Map.put(
-        :canonicalizedResource,
-        "/#{context.account_name}#{uri.path}\n" <>
-          (uri.query
-           |> URI.decode_query()
-           |> Enum.sort_by(& &1)
-           |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
-      )
-      |> SignedData.sign(context.account_key)
-
-    client =
-      RestClient.new(
-        base_uri,
-        headers |> Map.put("Authorization", "SharedKey #{context.account_name}:#{signature}")
-      )
-
-    %{status: 200, body: bodyXml} = client |> RestClient.get(request_path)
+    %{status: 200, body: bodyXml} = %{}
+    |> RequestBuilder.method(:get)
+    |> RequestBuilder.url("/")
+    |> RequestBuilder.add_storage_context(context)
+    |> RequestBuilder.add_param(:query, :comp, "list")
+    |> RequestBuilder.add_header("x-ms-date", DateTimeUtils.utc_now())
+    |> RequestBuilder.add_header("x-ms-version", @storage_api_version)
+    |> RequestBuilder.body("")
+    |> RequestBuilder.add_signature()
+    |> Enum.into([])
+    |> (&RestClient.request(connection(context), &1)).()
 
     {:ok,
      bodyXml
