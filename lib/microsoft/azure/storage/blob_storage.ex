@@ -1,14 +1,15 @@
 defmodule Microsoft.Azure.Storage.BlobStorage do
   import SweetXml
+
   alias Microsoft.Azure.Storage.ApiVersion.Models.BlobStorageSignedFields, as: SignedData
   alias Microsoft.Azure.Storage.BlobClient
   alias Microsoft.Azure.Storage.DateTimeUtils
+  alias Microsoft.Azure.Storage.AzureStorageContext
 
-  def create_container(account_name, account_key, container_name) do
+  def create_container(context = %AzureStorageContext{}, container_name) do
     container_name = container_name |> String.downcase()
 
-    cloudEnvironmentSuffix = "core.windows.net"
-    host = "#{account_name}.blob.#{cloudEnvironmentSuffix}"
+    host = context |> AzureStorageContext.blob_endpoint()
     resourcePath = "/#{container_name}/"
     query = %{restype: "container"} |> URI.encode_query()
     uri = "https://#{host}#{resourcePath}?#{query}" |> URI.parse()
@@ -31,21 +32,37 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       )
       |> Map.put(
         :canonicalizedResource,
-        "/#{account_name}#{uri.path}\n" <>
+        "/#{context.account_name}#{uri.path}\n" <>
           (uri.query
            |> URI.decode_query()
            |> Enum.sort_by(& &1)
            |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
       )
-      |> SignedData.sign(account_key)
+      |> SignedData.sign(context.account_key)
 
     client =
       BlobClient.new(
         base_uri,
-        headers |> Map.put("Authorization", "SharedKey #{account_name}:#{signature}")
+        headers |> Map.put("Authorization", "SharedKey #{context.account_name}:#{signature}")
       )
 
-    %{status: 201} = client |> BlobClient.put(request_path, "")
+    %{
+      status: 201,
+      url: url,
+      headers: %{
+        "etag" => etag,
+        "last-modified" => last_modified,
+        "x-ms-request-id" => request_id
+      }
+    } = client |> BlobClient.put(request_path, "")
+
+    {:ok,
+     %{
+       url: url,
+       etag: etag,
+       last_modified: last_modified,
+       request_id: request_id
+     }}
   end
 
   def list_containers(account_name, account_key) do
