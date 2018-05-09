@@ -2,52 +2,19 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   import SweetXml
   use NamedArgs
 
-  alias Microsoft.Azure.Storage.ApiVersion.Models.BlobStorageSignedFields, as: SignedData
-  alias Microsoft.Azure.Storage.BlobClient
+  alias Microsoft.Azure.Storage.Models.BlobStorageSignedFields, as: SignedData
+  alias Microsoft.Azure.Storage.RestClient
   alias Microsoft.Azure.Storage.DateTimeUtils
   alias Microsoft.Azure.Storage.AzureStorageContext
+  alias Microsoft.Azure.Storage.RequestBuilder
 
   @storage_api_version "2015-04-05"
 
   def create_container(context = %AzureStorageContext{}, container_name) do
-    container_name = container_name |> String.downcase()
-
-    host = context |> AzureStorageContext.blob_endpoint()
-    resourcePath = "/#{container_name}/"
-    query = %{restype: "container"} |> URI.encode_query()
-    uri = "https://#{host}#{resourcePath}?#{query}" |> URI.parse()
-    base_uri = "#{uri.scheme}://#{uri.host}:#{uri.port}"
-    request_path = "#{uri.path}?#{uri.query}"
-
-    headers = %{
-      "x-ms-date" => DateTimeUtils.utc_now(),
-      "x-ms-version" => @storage_api_version
-    }
-
-    hdr = fn headers, name -> "#{name}:" <> headers[name] end
-
-    signature =
-      SignedData.new()
-      |> Map.put(:verb, "PUT")
-      |> Map.put(
-        :canonicalizedHeaders,
-        hdr.(headers, "x-ms-date") <> "\n" <> hdr.(headers, "x-ms-version")
-      )
-      |> Map.put(
-        :canonicalizedResource,
-        "/#{context.account_name}#{uri.path}\n" <>
-          (uri.query
-           |> URI.decode_query()
-           |> Enum.sort_by(& &1)
-           |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
-      )
-      |> SignedData.sign(context.account_key)
-
-    client =
-      BlobClient.new(
-        base_uri,
-        headers |> Map.put("Authorization", "SharedKey #{context.account_name}:#{signature}")
-      )
+    connection =
+      context
+      |> AzureStorageContext.blob_endpoint_url()
+      |> RestClient.new()
 
     %{
       status: 201,
@@ -57,7 +24,18 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         "last-modified" => last_modified,
         "x-ms-request-id" => request_id
       }
-    } = client |> BlobClient.put(request_path, "")
+    } =
+      %{}
+      |> RequestBuilder.method(:put)
+      |> RequestBuilder.url("/#{container_name |> String.downcase()}")
+      |> RequestBuilder.add_storage_context(context)
+      |> RequestBuilder.add_param(:query, :restype, "container")
+      |> RequestBuilder.add_header("x-ms-date", DateTimeUtils.utc_now())
+      |> RequestBuilder.add_header("x-ms-version", @storage_api_version)
+      |> RequestBuilder.body("")
+      |> RequestBuilder.add_signature()
+      |> Enum.into([])
+      |> (&RestClient.request(connection, &1)).()
 
     {:ok,
      %{
@@ -103,12 +81,12 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> SignedData.sign(context.account_key)
 
     client =
-      BlobClient.new(
+      RestClient.new(
         base_uri,
         headers |> Map.put("Authorization", "SharedKey #{context.account_name}:#{signature}")
       )
 
-    %{status: 200, body: bodyXml} = client |> BlobClient.get(request_path)
+    %{status: 200, body: bodyXml} = client |> RestClient.get(request_path)
 
     {:ok,
      bodyXml
@@ -162,7 +140,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> SignedData.sign(context.account_key)
 
     client =
-      BlobClient.new(
+      RestClient.new(
         base_uri,
         headers |> Map.put("Authorization", "SharedKey #{context.account_name}:#{signature}")
       )
@@ -177,7 +155,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         "x-ms-lease-status" => lease_status,
         "x-ms-request-id" => request_id
       }
-    } = client |> BlobClient.get(request_path)
+    } = client |> RestClient.get(request_path)
 
     {:ok,
      %{
@@ -245,7 +223,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> SignedData.sign(context.account_key)
 
     client =
-      BlobClient.new(
+      RestClient.new(
         base_uri,
         headers |> Map.put("Authorization", "SharedKey #{context.account_name}:#{signature}")
       )
@@ -257,7 +235,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       headers: %{
         "x-ms-request-id" => request_id
       }
-    } = client |> BlobClient.get(request_path) |> IO.inspect()
+    } = client |> RestClient.get(request_path) |> IO.inspect()
 
     {:ok,
      bodyXml

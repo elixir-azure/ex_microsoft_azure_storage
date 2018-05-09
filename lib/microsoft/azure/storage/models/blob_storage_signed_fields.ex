@@ -1,4 +1,7 @@
-defmodule Microsoft.Azure.Storage.ApiVersion.Models.BlobStorageSignedFields do
+defmodule Microsoft.Azure.Storage.Models.BlobStorageSignedFields do
+  alias Microsoft.Azure.Storage.RequestBuilder
+  alias Microsoft.Azure.Storage.AzureStorageContext
+
   @enforce_keys [
     :verb,
     :contentEncoding,
