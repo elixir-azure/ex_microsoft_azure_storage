@@ -1,6 +1,6 @@
 # ExMicrosoftAzureStorage
 
-**TODO: Add description**
+An early prototype of an SDK to interact with Microsoft Azure Storage.
 
 ## Installation
 
@@ -10,12 +10,7 @@ by adding `ex_microsoft_azure_storage` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:ex_microsoft_azure_storage, "~> 0.1.0"}
+    {:ex_microsoft_azure_storage, app: false, github: "chgeuer/ex_microsoft_azure_storage", ref: "master"}
   ]
 end
 ```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/ex_microsoft_azure_storage](https://hexdocs.pm/ex_microsoft_azure_storage).
-
