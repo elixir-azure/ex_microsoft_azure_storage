@@ -7,6 +7,8 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   alias Microsoft.Azure.Storage.DateTimeUtils
   alias Microsoft.Azure.Storage.AzureStorageContext
 
+  @storage_api_version "2015-04-05"
+
   def create_container(context = %AzureStorageContext{}, container_name) do
     container_name = container_name |> String.downcase()
 
@@ -19,7 +21,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
     headers = %{
       "x-ms-date" => DateTimeUtils.utc_now(),
-      "x-ms-version" => "2015-04-05"
+      "x-ms-version" => @storage_api_version
     }
 
     hdr = fn headers, name -> "#{name}:" <> headers[name] end
@@ -78,7 +80,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
     headers = %{
       "x-ms-date" => DateTimeUtils.utc_now(),
-      "x-ms-version" => "2015-04-05"
+      "x-ms-version" => @storage_api_version
     }
 
     hdr = fn headers, name -> "#{name}:" <> headers[name] end
@@ -137,7 +139,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
     headers = %{
       "x-ms-date" => DateTimeUtils.utc_now(),
-      "x-ms-version" => "2015-04-05"
+      "x-ms-version" => @storage_api_version
     }
 
     hdr = fn headers, name -> "#{name}:" <> headers[name] end
@@ -220,7 +222,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
     headers = %{
       "x-ms-date" => DateTimeUtils.utc_now(),
-      "x-ms-version" => "2015-04-05"
+      "x-ms-version" => @storage_api_version
     }
 
     hdr = fn headers, name -> "#{name}:" <> headers[name] end
