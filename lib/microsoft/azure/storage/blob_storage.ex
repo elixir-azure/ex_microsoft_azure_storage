@@ -65,11 +65,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
      }}
   end
 
-  def list_containers(account_name, account_key) do
+  def list_containers(context = %AzureStorageContext{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
 
-    cloudEnvironmentSuffix = "core.windows.net"
-    host = "#{account_name}.blob.#{cloudEnvironmentSuffix}"
+    host = context |> AzureStorageContext.blob_endpoint()
     resourcePath = "/"
     query = %{comp: "list"} |> URI.encode_query()
     uri = "https://#{host}#{resourcePath}?#{query}" |> URI.parse()
@@ -92,18 +91,18 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       )
       |> Map.put(
         :canonicalizedResource,
-        "/#{account_name}#{uri.path}\n" <>
+        "/#{context.account_name}#{uri.path}\n" <>
           (uri.query
            |> URI.decode_query()
            |> Enum.sort_by(& &1)
            |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
       )
-      |> SignedData.sign(account_key)
+      |> SignedData.sign(context.account_key)
 
     client =
       BlobClient.new(
         base_uri,
-        headers |> Map.put("Authorization", "SharedKey #{account_name}:#{signature}")
+        headers |> Map.put("Authorization", "SharedKey #{context.account_name}:#{signature}")
       )
 
     %{status: 200, body: bodyXml} = client |> BlobClient.get(request_path)
@@ -125,11 +124,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
      )}
   end
 
-  def get_container_properties(account_name, account_key, container_name) do
+  def get_container_properties(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-properties
 
-    cloudEnvironmentSuffix = "core.windows.net"
-    host = "#{account_name}.blob.#{cloudEnvironmentSuffix}"
+    host = context |> AzureStorageContext.blob_endpoint()
     resourcePath = "/#{container_name}"
     query = %{restype: "container"} |> URI.encode_query()
     uri = "https://#{host}#{resourcePath}?#{query}" |> URI.parse()
@@ -152,18 +150,18 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       )
       |> Map.put(
         :canonicalizedResource,
-        "/#{account_name}#{uri.path}\n" <>
+        "/#{context.account_name}#{uri.path}\n" <>
           (uri.query
            |> URI.decode_query()
            |> Enum.sort_by(& &1)
            |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
       )
-      |> SignedData.sign(account_key)
+      |> SignedData.sign(context.account_key)
 
     client =
       BlobClient.new(
         base_uri,
-        headers |> Map.put("Authorization", "SharedKey #{account_name}:#{signature}")
+        headers |> Map.put("Authorization", "SharedKey #{context.account_name}:#{signature}")
       )
 
     %{

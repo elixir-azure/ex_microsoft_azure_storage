@@ -13,17 +13,8 @@ defmodule ExMicrosoftAzureStorage do
     do: storage_context() |> BlobStorage.create_container(container_name)
 
   def list_containers(),
-    do:
-      BlobStorage.list_containers(
-        "SAMPLE_STORAGE_ACCOUNT_NAME" |> System.get_env(),
-        "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env()
-      )
+    do: storage_context() |> BlobStorage.list_containers()
 
   def get_container_properties(container_name),
-    do:
-      BlobStorage.get_container_properties(
-        "SAMPLE_STORAGE_ACCOUNT_NAME" |> System.get_env(),
-        "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env(),
-        container_name
-      )
+    do: storage_context() |> BlobStorage.get_container_properties(container_name)
 end
