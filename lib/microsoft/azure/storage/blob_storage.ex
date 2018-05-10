@@ -96,12 +96,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-blobs
 
-    %{
-      status: 200,
-      url: url,
-      headers: headers,
-      body: bodyXml
-    } =
+    response =
       new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}")
@@ -111,32 +106,46 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
-    {:ok,
-     bodyXml
-     |> xmap(
-       max_results: ~x"/EnumerationResults/MaxResults/text()"s,
-       next_marker: ~x"/EnumerationResults/NextMarker/text()"s,
-       blobs: [
-         ~x"/EnumerationResults/Blobs/Blob"l,
-         name: ~x"./Name/text()"s,
-         properties: [
-           ~x"./Properties",
-           etag: ~x"./Etag/text()"s,
-           last_modified: ~x"./Last-Modified/text()"s,
-           content_length: ~x"./Content-Length/text()"i,
-           content_type: ~x"./Content-Type/text()"s,
-           content_encoding: ~x"./Content-Encoding/text()"s,
-           content_language: ~x"./Content-Language/text()"s,
-           content_md5: ~x"./Content-MD5/text()"s,
-           content_disposition: ~x"./Content-Disposition/text()"s,
-           cache_control: ~x"./Cache-Control/text()"s,
-           blob_type: ~x"./BlobType/text()"s,
-           lease_status: ~x"./LeaseStatus/text()"s,
-           lease_state: ~x"./LeaseState/text()"s
-         ]
-       ]
-     )
-     |> Map.put(:url, url)
-     |> Map.put(:request_id, headers[:"x-ms-request-id"])}
+    case response do
+      %{status: 200} ->
+        {:ok,
+         response.body
+         |> xmap(
+           max_results: ~x"/EnumerationResults/MaxResults/text()"s,
+           next_marker: ~x"/EnumerationResults/NextMarker/text()"s,
+           blobs: [
+             ~x"/EnumerationResults/Blobs/Blob"l,
+             name: ~x"./Name/text()"s,
+             properties: [
+               ~x"./Properties",
+               etag: ~x"./Etag/text()"s,
+               last_modified: ~x"./Last-Modified/text()"s,
+               content_length: ~x"./Content-Length/text()"i,
+               content_type: ~x"./Content-Type/text()"s,
+               content_encoding: ~x"./Content-Encoding/text()"s,
+               content_language: ~x"./Content-Language/text()"s,
+               content_md5: ~x"./Content-MD5/text()"s,
+               content_disposition: ~x"./Content-Disposition/text()"s,
+               cache_control: ~x"./Cache-Control/text()"s,
+               blob_type: ~x"./BlobType/text()"s,
+               lease_status: ~x"./LeaseStatus/text()"s,
+               lease_state: ~x"./LeaseState/text()"s
+             ]
+           ]
+         )
+         |> Map.put(:url, response.url)
+         |> Map.put(:request_id, response.headers[:"x-ms-request-id"])}
+
+      %{status: status} when 400 <= status and status < 500 ->
+        {:error,
+         response.body
+         |> xmap(
+           code: ~x"/Error/Code/text()"s,
+           message: ~x"/Error/Message/text()"s
+         )
+         |> Map.put(:http_status, status)
+         |> Map.put(:url, response.url)
+         |> Map.put(:request_id, response.headers[:"x-ms-request-id"])}
+    end
   end
 end
