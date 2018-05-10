@@ -137,15 +137,17 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
          |> Map.put(:request_id, response.headers[:"x-ms-request-id"])}
 
       %{status: status} when 400 <= status and status < 500 ->
-        {:error,
-         response.body
-         |> xmap(
-           code: ~x"/Error/Code/text()"s,
-           message: ~x"/Error/Message/text()"s
-         )
-         |> Map.put(:http_status, status)
-         |> Map.put(:url, response.url)
-         |> Map.put(:request_id, response.headers[:"x-ms-request-id"])}
+        response |> create_error_response()
     end
+  end
+
+  defp create_error_response(response = %{}) do
+    {:error,
+    response.body
+    |> xmap(code: ~x"/Error/Code/text()"s, message: ~x"/Error/Message/text()"s)
+    |> Map.update!(:message, &String.split(&1, "\n"))
+    |> Map.put(:http_status, response.status)
+    |> Map.put(:url, response.url)
+    |> Map.put(:request_id, response.headers["x-ms-request-id"])}
   end
 end
