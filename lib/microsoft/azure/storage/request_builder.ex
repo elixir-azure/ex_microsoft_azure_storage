@@ -93,6 +93,16 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   defp primary(account_name), do: account_name |> String.replace("-secondary", "")
 
+  defp canonicalized_headers(headers = %{}),
+    do:
+      headers
+      |> Enum.into([])
+      |> Enum.map(fn {k, v} -> {k |> String.downcase(), v} end)
+      |> Enum.filter(fn {k, _} -> k |> String.starts_with?("x-ms-") end)
+      |> Enum.sort()
+      |> Enum.map(fn {k, v} -> "#{k}:#{v}" end)
+      |> Enum.join("\n")
+
   def add_signature(
         # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
 
@@ -100,16 +110,12 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
           method: method,
           url: url,
           query: query,
-          headers:
-            headers = %{
-              "x-ms-date" => x_ms_date,
-              "x-ms-version" => x_ms_version
-            },
+          headers: headers = %{},
           storage_context: storage_context = %AzureStorageContext{}
         }
       )
       when is_map(data) do
-    canonicalizedHeaders = "x-ms-date:#{x_ms_date}" <> "\n" <> "x-ms-version:#{x_ms_version}"
+    canonicalizedHeaders = headers |> canonicalized_headers()
 
     canonicalizedResource =
       "/#{storage_context.account_name |> primary()}#{url}\n" <>
