@@ -12,7 +12,6 @@ defmodule Microsoft.Azure.Storage.AzureStorageContext do
     do:
       context
       |> Map.update!(:account_name, &(&1 <> "-secondary"))
-      |> IO.inspect()
 
   def endpoint_url(context = %__MODULE__{}, service) when is_atom(service),
     do: "https://" <> endpoint_hostname(context, service)

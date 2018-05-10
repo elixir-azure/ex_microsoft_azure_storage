@@ -118,11 +118,9 @@ defmodule ExMicrosoftAzureStorageTest do
   #   "fR5pqJJzUC/H4rXDmkbQSL0JO94="
   #   |> Base.decode64!()
   #   |> Base.encode16()
-  #   |> IO.inspect()
 
   #   "7d1e69a89273502fc7e2b5c39a46d048bd093bde"
   #   |> Base.decode16!(case: :mixed)
   #   |> Base.encode64()
-  #   |> IO.inspect()
   # end
 end

@@ -59,7 +59,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         @storage_api_version
       )
       |> sign_and_call(:blob_service)
-      |> IO.inspect()
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
