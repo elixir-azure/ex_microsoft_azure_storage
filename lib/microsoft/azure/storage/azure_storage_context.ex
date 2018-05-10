@@ -5,7 +5,7 @@ defmodule Microsoft.Azure.Storage.AzureStorageContext do
     blob_service: "blob",
     queue_service: "queue",
     table_service: "table",
-    file_service: "file",
+    file_service: "file"
   }
 
   def endpoint_url(context = %__MODULE__{}, service) when is_atom(service),

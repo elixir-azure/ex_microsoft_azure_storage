@@ -8,11 +8,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   @storage_api_version "2015-04-05"
 
   def create_container(context = %AzureStorageContext{}, container_name) do
-    %{
-      status: 201,
-      url: url,
-      headers: headers
-    } =
+    response =
       new_azure_storage_request()
       |> method(:put)
       |> url("/#{container_name |> String.downcase()}")
@@ -21,17 +17,23 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
-    {:ok,
-     %{
-       url: url,
-       etag: headers[:etag],
-       last_modified: headers[:"last-modified"],
-       request_id: headers[:"x-ms-request-id"]
-     }}
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 201} ->
+        {:ok,
+         %{
+           url: response.url,
+           etag: response.headers["etag"],
+           last_modified: response.headers["last-modified"],
+           request_id: response.headers["x-ms-request-id"]
+         }}
+    end
   end
 
   def list_containers(context = %AzureStorageContext{}) do
-    %{status: 200, body: bodyXml} =
+    response =
       new_azure_storage_request()
       |> method(:get)
       |> url("/")
@@ -39,31 +41,33 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
-    {:ok,
-     bodyXml
-     |> xmap(
-       containers: [
-         ~x"/EnumerationResults/Containers/Container"l,
-         name: ~x"./Name/text()"s,
-         properties: [
-           ~x"./Properties",
-           lastModified: ~x"./Last-Modified/text()"s,
-           eTag: ~x"./Etag/text()"s,
-           leaseStatus: ~x"./LeaseStatus/text()"s,
-           leaseState: ~x"./LeaseState/text()"s
-         ]
-       ]
-     )}
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 200} ->
+        {:ok,
+         response.body
+         |> xmap(
+           containers: [
+             ~x"/EnumerationResults/Containers/Container"l,
+             name: ~x"./Name/text()"s,
+             properties: [
+               ~x"./Properties",
+               lastModified: ~x"./Last-Modified/text()"s,
+               eTag: ~x"./Etag/text()"s,
+               leaseStatus: ~x"./LeaseStatus/text()"s,
+               leaseState: ~x"./LeaseState/text()"s
+             ]
+           ]
+         )}
+    end
   end
 
   def get_container_properties(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-properties
 
-    %{
-      status: 200,
-      url: url,
-      headers: headers
-    } =
+    response =
       new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}")
@@ -71,15 +75,21 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
-    {:ok,
-     %{
-       url: url,
-       etag: headers[:etag],
-       last_modified: headers[:"last-modified"],
-       lease_state: headers[:"x-ms-lease-state"],
-       lease_status: headers[:"x-ms-lease-status"],
-       request_id: headers[:"x-ms-request-id"]
-     }}
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 200} ->
+        {:ok,
+         %{
+           url: response.url,
+           etag: response.headers["etag"],
+           last_modified: response.headers["last-modified"],
+           lease_state: response.headers["x-ms-lease-state"],
+           lease_status: response.headers["x-ms-lease-status"],
+           request_id: response.headers["x-ms-request-id"]
+         }}
+    end
   end
 
   def list_blobs(
@@ -107,6 +117,9 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> sign_and_call(:blob_service)
 
     case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
       %{status: 200} ->
         {:ok,
          response.body
@@ -135,19 +148,16 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
          )
          |> Map.put(:url, response.url)
          |> Map.put(:request_id, response.headers[:"x-ms-request-id"])}
-
-      %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
     end
   end
 
   defp create_error_response(response = %{}) do
     {:error,
-    response.body
-    |> xmap(code: ~x"/Error/Code/text()"s, message: ~x"/Error/Message/text()"s)
-    |> Map.update!(:message, &String.split(&1, "\n"))
-    |> Map.put(:http_status, response.status)
-    |> Map.put(:url, response.url)
-    |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+     response.body
+     |> xmap(code: ~x"/Error/Code/text()"s, message: ~x"/Error/Message/text()"s)
+     |> Map.update!(:message, &String.split(&1, "\n"))
+     |> Map.put(:http_status, response.status)
+     |> Map.put(:url, response.url)
+     |> Map.put(:request_id, response.headers["x-ms-request-id"])}
   end
 end
