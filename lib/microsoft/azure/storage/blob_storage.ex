@@ -7,33 +7,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
   @storage_api_version "2015-04-05"
 
-  def create_container(context = %AzureStorageContext{}, container_name) do
-    response =
-      new_azure_storage_request()
-      |> method(:put)
-      |> url("/#{container_name |> String.downcase()}")
-      |> add_param(:query, :restype, "container")
-      |> body(nil)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
-      |> sign_and_call(:blob_service)
-
-    case response do
-      %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
-
-      %{status: 201} ->
-        {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"],
-           etag: response.headers["etag"],
-           last_modified: response.headers["last-modified"]
-         }}
-    end
-  end
-
   def list_containers(context = %AzureStorageContext{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-containers2
     response =
@@ -70,6 +43,34 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
          |> Map.put(:request_id, response.headers["x-ms-request-id"])}
     end
   end
+
+  def create_container(context = %AzureStorageContext{}, container_name) do
+    response =
+      new_azure_storage_request()
+      |> method(:put)
+      |> url("/#{container_name |> String.downcase()}")
+      |> add_param(:query, :restype, "container")
+      |> body(nil)
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
+      |> sign_and_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 201} ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           etag: response.headers["etag"],
+           last_modified: response.headers["last-modified"]
+         }}
+    end
+  end
+
 
   def get_container_properties(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-properties
