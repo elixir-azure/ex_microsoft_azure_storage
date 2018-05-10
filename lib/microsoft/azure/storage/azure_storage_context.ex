@@ -8,6 +8,12 @@ defmodule Microsoft.Azure.Storage.AzureStorageContext do
     file_service: "file"
   }
 
+  def secondary(context = %__MODULE__{}),
+    do:
+      context
+      |> Map.update!(:account_name, &(&1 <> "-secondary"))
+      |> IO.inspect()
+
   def endpoint_url(context = %__MODULE__{}, service) when is_atom(service),
     do: "https://" <> endpoint_hostname(context, service)
 

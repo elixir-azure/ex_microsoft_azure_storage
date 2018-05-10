@@ -44,6 +44,40 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
+  def get_blob_service_stats(context = %AzureStorageContext{}) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-stats
+    response =
+      new_azure_storage_request()
+      |> method(:get)
+      |> url("/")
+      |> add_param(:query, :restype, "service")
+      |> add_param(:query, :comp, "stats")
+      |> add_ms_context(
+        context |> AzureStorageContext.secondary(),
+        DateTimeUtils.utc_now(),
+        @storage_api_version
+      )
+      |> sign_and_call(:blob_service)
+      |> IO.inspect()
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 200} ->
+        {:ok,
+         response.body
+         |> xmap(
+           status: ~x"/StorageServiceStats/GeoReplication/Status/text()"s,
+           last_sync_time: ~x"/StorageServiceStats/GeoReplication/LastSyncTime/text()"s
+         )
+         |> Map.put(:headers, response.headers)
+         |> Map.put(:url, response.url)
+         |> Map.put(:status, response.status)
+         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+    end
+  end
+
   def create_container(context = %AzureStorageContext{}, container_name) do
     response =
       new_azure_storage_request()
@@ -70,7 +104,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
          }}
     end
   end
-
 
   def get_container_properties(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-properties

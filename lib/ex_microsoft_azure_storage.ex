@@ -9,14 +9,17 @@ defmodule ExMicrosoftAzureStorage do
       cloud_environment_suffix: "core.windows.net"
     }
 
+  def list_containers(),
+    do: storage_context() |> BlobStorage.list_containers()
+
+  def get_blob_service_stats(),
+    do: storage_context() |> BlobStorage.get_blob_service_stats()
+
   def create_container(container_name),
     do: storage_context() |> BlobStorage.create_container(container_name)
 
   def delete_container(container_name),
     do: storage_context() |> BlobStorage.delete_container(container_name)
-
-  def list_containers(),
-    do: storage_context() |> BlobStorage.list_containers()
 
   def list_blobs(container_name, opts \\ []),
     do: storage_context() |> BlobStorage.list_blobs(container_name, opts)
