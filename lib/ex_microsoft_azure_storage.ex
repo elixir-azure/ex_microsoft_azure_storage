@@ -29,4 +29,7 @@ defmodule ExMicrosoftAzureStorage do
 
   def get_container_metadata(container_name),
     do: storage_context() |> BlobStorage.get_container_metadata(container_name)
+
+  def get_container_acl(container_name),
+    do: storage_context() |> BlobStorage.get_container_acl(container_name)
 end

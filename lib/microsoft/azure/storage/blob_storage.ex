@@ -3,6 +3,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   import SweetXml
   use NamedArgs
   alias Microsoft.Azure.Storage.DateTimeUtils
+  alias Microsoft.Azure.Storage.BlobPolicy
   alias Microsoft.Azure.Storage.AzureStorageContext
 
   @storage_api_version "2015-04-05"
@@ -79,10 +80,11 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   end
 
   def create_container(context = %AzureStorageContext{}, container_name) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/create-container
     response =
       new_azure_storage_request()
       |> method(:put)
-      |> url("/#{container_name |> String.downcase()}")
+      |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
       |> body(nil)
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
@@ -107,7 +109,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
   def get_container_properties(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-properties
-
     response =
       new_azure_storage_request()
       |> method(:get)
@@ -166,11 +167,61 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
+  defp get_container_acl_body(body) do
+    body
+    |> xpath(~x"/SignedIdentifiers/SignedIdentifier"l)
+    |> Enum.map(fn (node) ->
+      %BlobPolicy{
+        id: node |> xpath(~x"./Id/text()"),
+        start: node |> xpath(~x"./AccessPolicy/Start/text()"),
+        expiry: node |> xpath(~x"./AccessPolicy/Expiry/text()"),
+        permission: node |> xpath(~x"./AccessPolicy/Permission/text()"),
+      }
+      end)
+  end
+
+  def get_container_acl(context = %AzureStorageContext{}, container_name) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-acl
+
+    response =
+      new_azure_storage_request()
+      |> method(:get)
+      |> url("/#{container_name}")
+      |> add_param(:query, :restype, "container")
+      |> add_param(:query, :comp, "acl")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
+      |> sign_and_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 200} ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           etag: response.headers["etag"],
+           last_modified: response.headers["last-modified"],
+           blob_public_access: response.headers["x-ms-blob-public-access"],
+           policies: case response.body do
+             body when body != nil and body != "" ->
+              body
+              |> get_container_acl_body()
+             _ -> []
+           end
+         }}
+    end
+  end
+
   def delete_container(context = %AzureStorageContext{}, container_name) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-container
     response =
       new_azure_storage_request()
       |> method(:delete)
-      |> url("/#{container_name |> String.downcase()}")
+      |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
       |> body("")
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
