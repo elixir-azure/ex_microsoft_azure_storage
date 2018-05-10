@@ -13,7 +13,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> method(:put)
       |> url("/#{container_name |> String.downcase()}")
       |> add_param(:query, :restype, "container")
-      |> body("")
+      |> body(nil)
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
@@ -25,9 +25,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         {:ok,
          %{
            url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
            etag: response.headers["etag"],
-           last_modified: response.headers["last-modified"],
-           request_id: response.headers["x-ms-request-id"]
+           last_modified: response.headers["last-modified"]
          }}
     end
   end
@@ -60,7 +61,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
                leaseState: ~x"./LeaseState/text()"s
              ]
            ]
-         )}
+         )
+         |> Map.put(:url, response.url)
+         |> Map.put(:status, response.status)
+         |> Map.put(:request_id, response.headers[:"x-ms-request-id"])}
     end
   end
 
@@ -83,10 +87,35 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         {:ok,
          %{
            url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
            etag: response.headers["etag"],
            last_modified: response.headers["last-modified"],
            lease_state: response.headers["x-ms-lease-state"],
-           lease_status: response.headers["x-ms-lease-status"],
+           lease_status: response.headers["x-ms-lease-status"]
+         }}
+    end
+  end
+
+  def delete_container(context = %AzureStorageContext{}, container_name) do
+    response =
+      new_azure_storage_request()
+      |> method(:delete)
+      |> url("/#{container_name |> String.downcase()}")
+      |> add_param(:query, :restype, "container")
+      |> body("")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
+      |> sign_and_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 202} ->
+        {:ok,
+         %{
+           url: response.url,
+           status: response.status,
            request_id: response.headers["x-ms-request-id"]
          }}
     end
@@ -147,6 +176,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
            ]
          )
          |> Map.put(:url, response.url)
+         |> Map.put(:status, response.status)
          |> Map.put(:request_id, response.headers[:"x-ms-request-id"])}
     end
   end

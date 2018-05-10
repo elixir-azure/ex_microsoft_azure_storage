@@ -12,6 +12,9 @@ defmodule ExMicrosoftAzureStorage do
   def create_container(container_name),
     do: storage_context() |> BlobStorage.create_container(container_name)
 
+  def delete_container(container_name),
+    do: storage_context() |> BlobStorage.delete_container(container_name)
+
   def list_containers(),
     do: storage_context() |> BlobStorage.list_containers()
 
