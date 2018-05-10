@@ -1,5 +1,6 @@
 defmodule Microsoft.Azure.Storage.RequestBuilder do
   alias Microsoft.Azure.Storage.AzureStorageContext
+  alias Microsoft.Azure.Storage.RestClient
 
   def method(request, m), do: request |> Map.put_new(:method, m)
 
@@ -119,5 +120,16 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       "Authorization",
       "SharedKey #{storage_context.account_name}:#{signature}"
     )
+  end
+
+  def sign_and_call(request = %{storage_context: storage_context}, :blob_service) do
+    connection = storage_context
+    |> AzureStorageContext.blob_endpoint_url()
+    |> RestClient.new()
+
+    request
+    |> add_signature()
+    |> Enum.into([])
+    |> (&RestClient.request(connection, &1)).()
   end
 end

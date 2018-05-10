@@ -1,19 +1,13 @@
 defmodule Microsoft.Azure.Storage.BlobStorage do
+  import Microsoft.Azure.Storage.RequestBuilder
   import SweetXml
   use NamedArgs
 
-  alias Microsoft.Azure.Storage.Models.BlobStorageSignedFields, as: SignedData
-  alias Microsoft.Azure.Storage.RestClient
   alias Microsoft.Azure.Storage.DateTimeUtils
   alias Microsoft.Azure.Storage.AzureStorageContext
-  alias Microsoft.Azure.Storage.RequestBuilder
 
   @storage_api_version "2015-04-05"
 
-  defp connection(context = %AzureStorageContext{}), do:
-  context
-  |> AzureStorageContext.blob_endpoint_url()
-  |> RestClient.new()
 
   def create_container(context = %AzureStorageContext{}, container_name) do
     %{
@@ -26,16 +20,14 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       }
     } =
       %{}
-      |> RequestBuilder.method(:put)
-      |> RequestBuilder.url("/#{container_name |> String.downcase()}")
-      |> RequestBuilder.add_storage_context(context)
-      |> RequestBuilder.add_param(:query, :restype, "container")
-      |> RequestBuilder.add_header("x-ms-date", DateTimeUtils.utc_now())
-      |> RequestBuilder.add_header("x-ms-version", @storage_api_version)
-      |> RequestBuilder.body("")
-      |> RequestBuilder.add_signature()
-      |> Enum.into([])
-      |> (&RestClient.request(connection(context), &1)).()
+      |> method(:put)
+      |> url("/#{container_name |> String.downcase()}")
+      |> add_storage_context(context)
+      |> add_param(:query, :restype, "container")
+      |> add_header("x-ms-date", DateTimeUtils.utc_now())
+      |> add_header("x-ms-version", @storage_api_version)
+      |> body("")
+      |> sign_and_call(:blob_service)
 
     {:ok,
      %{
@@ -48,15 +40,13 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
   def list_containers(context = %AzureStorageContext{}) do
     %{status: 200, body: bodyXml} = %{}
-    |> RequestBuilder.method(:get)
-    |> RequestBuilder.url("/")
-    |> RequestBuilder.add_storage_context(context)
-    |> RequestBuilder.add_param(:query, :comp, "list")
-    |> RequestBuilder.add_header("x-ms-date", DateTimeUtils.utc_now())
-    |> RequestBuilder.add_header("x-ms-version", @storage_api_version)
-    |> RequestBuilder.add_signature()
-    |> Enum.into([])
-    |> (&RestClient.request(connection(context), &1)).()
+    |> method(:get)
+    |> url("/")
+    |> add_storage_context(context)
+    |> add_param(:query, :comp, "list")
+    |> add_header("x-ms-date", DateTimeUtils.utc_now())
+    |> add_header("x-ms-version", @storage_api_version)
+    |> sign_and_call(:blob_service)
 
     {:ok,
      bodyXml
@@ -89,15 +79,13 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         "x-ms-request-id" => request_id
       }
     } = %{}
-    |> RequestBuilder.method(:get)
-    |> RequestBuilder.url("/#{container_name}")
-    |> RequestBuilder.add_storage_context(context)
-    |> RequestBuilder.add_param(:query, :restype, "container")
-    |> RequestBuilder.add_header("x-ms-date", DateTimeUtils.utc_now())
-    |> RequestBuilder.add_header("x-ms-version", @storage_api_version)
-    |> RequestBuilder.add_signature()
-    |> Enum.into([])
-    |> (&RestClient.request(connection(context), &1)).()
+    |> method(:get)
+    |> url("/#{container_name}")
+    |> add_storage_context(context)
+    |> add_param(:query, :restype, "container")
+    |> add_header("x-ms-date", DateTimeUtils.utc_now())
+    |> add_header("x-ms-version", @storage_api_version)
+    |> sign_and_call(:blob_service)
 
     {:ok,
      %{
@@ -140,16 +128,14 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         "x-ms-request-id" => request_id
       }
     } = %{}
-    |> RequestBuilder.method(:get)
-    |> RequestBuilder.url("/#{container_name}")
-    |> RequestBuilder.add_storage_context(context)
-    |> RequestBuilder.add_param(:query, :comp, "list")
-    |> RequestBuilder.add_param(:query, :restype, "container")
-    |> RequestBuilder.add_header("x-ms-date", DateTimeUtils.utc_now())
-    |> RequestBuilder.add_header("x-ms-version", @storage_api_version)
-    |> RequestBuilder.add_signature()
-    |> Enum.into([])
-    |> (&RestClient.request(connection(context), &1)).()
+    |> method(:get)
+    |> url("/#{container_name}")
+    |> add_storage_context(context)
+    |> add_param(:query, :comp, "list")
+    |> add_param(:query, :restype, "container")
+    |> add_header("x-ms-date", DateTimeUtils.utc_now())
+    |> add_header("x-ms-version", @storage_api_version)
+    |> sign_and_call(:blob_service)
 
     {:ok,
      bodyXml
