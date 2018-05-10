@@ -167,19 +167,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  defp get_container_acl_body(body) do
-    body
-    |> xpath(~x"/SignedIdentifiers/SignedIdentifier"l)
-    |> Enum.map(fn node ->
-      %BlobPolicy{
-        id: node |> xpath(~x"./Id/text()"),
-        start: node |> xpath(~x"./AccessPolicy/Start/text()"),
-        expiry: node |> xpath(~x"./AccessPolicy/Expiry/text()"),
-        permission: node |> xpath(~x"./AccessPolicy/Permission/text()")
-      }
-    end)
-  end
-
   def get_container_acl(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-acl
 
@@ -206,7 +193,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
            etag: response.headers["etag"],
            last_modified: response.headers["last-modified"],
            blob_public_access: response.headers["x-ms-blob-public-access"],
-           policies: response.body |> process_body([], &get_container_acl_body/1)
+           policies: response.body |> process_body([], &BlobPolicy.deserialize/1)
          }}
     end
   end
