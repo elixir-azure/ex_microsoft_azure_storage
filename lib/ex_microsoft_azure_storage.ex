@@ -18,6 +18,10 @@ defmodule ExMicrosoftAzureStorage do
   def list_blobs(container_name, opts \\ []),
     do: storage_context() |> BlobStorage.list_blobs(container_name, opts)
 
+  def x() do
+    list_blobs("philipp", maxresults: 1)
+  end
+
   def get_container_properties(container_name),
     do: storage_context() |> BlobStorage.get_container_properties(container_name)
 end

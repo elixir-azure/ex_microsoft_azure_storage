@@ -16,9 +16,6 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def add_header(request, k, v), do: request |> Map.put(:headers, %{k => v})
 
-  def add_storage_context(request, storage_context = %AzureStorageContext{}),
-    do: request |> Map.put_new(:storage_context, storage_context)
-
   def add_optional_params(request, _, []), do: request
 
   def add_optional_params(request, definitions, [{key, value} | tail]) do
@@ -61,14 +58,38 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   end
 
   def add_param(request, location, key, value) do
-    Map.update(request, location, [{key, value}], &(&1 ++ [{key, value}]))
+    request
+    |> Map.update(location, [{key, value}], &(&1 ++ [{key, value}]))
   end
 
-  def decode(%Tesla.Env{status: 200, body: body}), do: Poison.decode(body)
-  def decode(response), do: {:error, response}
-  def decode(%Tesla.Env{status: 200} = env, false), do: {:ok, env}
-  def decode(%Tesla.Env{status: 200, body: body}, struct), do: Poison.decode(body, as: struct)
-  def decode(response, _struct), do: {:error, response}
+  def add_param(request, :query, opts) when is_list(opts) do
+    filtered_opts = opts |> only_non_empty_values
+
+    new_q =
+      case request[:query] do
+        nil -> filtered_opts
+        query -> query ++ filtered_opts
+      end
+
+    request
+    |> Map.put(:query, new_q)
+  end
+
+  defp only_non_empty_values(opts) when is_list(opts),
+    do:
+      opts
+      |> Enum.filter(fn {_, value} -> value != nil && value != "" end)
+      |> Enum.into([])
+
+  def add_storage_context(request, storage_context = %AzureStorageContext{}),
+    do: request |> Map.put_new(:storage_context, storage_context)
+
+  def add_ms_context(request, storage_context, date, api_version) do
+    request
+    |> add_storage_context(storage_context)
+    |> add_header("x-ms-date", date)
+    |> add_header("x-ms-version", api_version)
+  end
 
   def add_signature(
         # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
@@ -124,13 +145,6 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     )
   end
 
-  def add_ms_context(request, storage_context, date, api_version) do
-    request
-    |> add_storage_context(storage_context)
-    |> add_header("x-ms-date", date)
-    |> add_header("x-ms-version", api_version)
-  end
-
   def sign_and_call(request = %{storage_context: storage_context}, service)
       when is_atom(service) do
     connection =
@@ -143,4 +157,10 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> Enum.into([])
     |> (&RestClient.request(connection, &1)).()
   end
+
+  def decode(%Tesla.Env{status: 200, body: body}), do: Poison.decode(body)
+  def decode(response), do: {:error, response}
+  def decode(%Tesla.Env{status: 200} = env, false), do: {:ok, env}
+  def decode(%Tesla.Env{status: 200, body: body}, struct), do: Poison.decode(body, as: struct)
+  def decode(response, _struct), do: {:error, response}
 end

@@ -2,7 +2,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   import Microsoft.Azure.Storage.RequestBuilder
   import SweetXml
   use NamedArgs
-
   alias Microsoft.Azure.Storage.DateTimeUtils
   alias Microsoft.Azure.Storage.AzureStorageContext
 
@@ -12,11 +11,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     %{
       status: 201,
       url: url,
-      headers: %{
-        "etag" => etag,
-        "last-modified" => last_modified,
-        "x-ms-request-id" => request_id
-      }
+      headers: headers
     } =
       new_azure_storage_request()
       |> method(:put)
@@ -29,9 +24,9 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     {:ok,
      %{
        url: url,
-       etag: etag,
-       last_modified: last_modified,
-       request_id: request_id
+       etag: headers[:etag],
+       last_modified: headers[:"last-modified"],
+       request_id: headers[:"x-ms-request-id"]
      }}
   end
 
@@ -67,13 +62,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     %{
       status: 200,
       url: url,
-      headers: %{
-        "etag" => etag,
-        "last-modified" => last_modified,
-        "x-ms-lease-state" => lease_state,
-        "x-ms-lease-status" => lease_status,
-        "x-ms-request-id" => request_id
-      }
+      headers: headers
     } =
       new_azure_storage_request()
       |> method(:get)
@@ -85,11 +74,11 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     {:ok,
      %{
        url: url,
-       etag: etag,
-       last_modified: last_modified,
-       lease_state: lease_state,
-       lease_status: lease_status,
-       request_id: request_id
+       etag: headers[:etag],
+       last_modified: headers[:"last-modified"],
+       lease_state: headers[:"x-ms-lease-state"],
+       lease_status: headers[:"x-ms-lease-status"],
+       request_id: headers[:"x-ms-request-id"]
      }}
   end
 
@@ -102,31 +91,23 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
           marker: nil,
           maxresults: nil,
           timeout: nil,
-          include: "snapshots"
+          include: nil
         ]
       ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-blobs
 
-    # query =
-    #   opts
-    #   |> Keyword.merge(main_query)
-    #   |> Enum.filter(fn {_, value} -> value != nil && value != "" end)
-    #   |> Map.new()
-    #   |> URI.encode_query()
-
     %{
       status: 200,
-      body: bodyXml,
       url: url,
-      headers: %{
-        "x-ms-request-id" => request_id
-      }
+      headers: headers,
+      body: bodyXml
     } =
       new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}")
       |> add_param(:query, :comp, "list")
       |> add_param(:query, :restype, "container")
+      |> add_param(:query, opts)
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
@@ -140,15 +121,15 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
          name: ~x"./Name/text()"s,
          properties: [
            ~x"./Properties",
-           last_modified: ~x"./Last-Modified/text()"s,
            etag: ~x"./Etag/text()"s,
+           last_modified: ~x"./Last-Modified/text()"s,
            content_length: ~x"./Content-Length/text()"i,
            content_type: ~x"./Content-Type/text()"s,
            content_encoding: ~x"./Content-Encoding/text()"s,
            content_language: ~x"./Content-Language/text()"s,
            content_md5: ~x"./Content-MD5/text()"s,
-           cache_control: ~x"./Cache-Control/text()"s,
            content_disposition: ~x"./Content-Disposition/text()"s,
+           cache_control: ~x"./Cache-Control/text()"s,
            blob_type: ~x"./BlobType/text()"s,
            lease_status: ~x"./LeaseStatus/text()"s,
            lease_state: ~x"./LeaseState/text()"s
@@ -156,6 +137,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
        ]
      )
      |> Map.put(:url, url)
-     |> Map.put(:request_id, request_id)}
+     |> Map.put(:request_id, headers[:"x-ms-request-id"])}
   end
 end
