@@ -122,10 +122,19 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     )
   end
 
-  def sign_and_call(request = %{storage_context: storage_context}, :blob_service) do
-    connection = storage_context
-    |> AzureStorageContext.blob_endpoint_url()
-    |> RestClient.new()
+  def add_ms_context(request, storage_context, date, api_version) do
+    request
+    |> add_storage_context(storage_context)
+    |> add_header("x-ms-date", date)
+    |> add_header("x-ms-version", api_version)
+  end
+
+  def sign_and_call(request = %{storage_context: storage_context}, service)
+      when is_atom(service) do
+    connection =
+      storage_context
+      |> AzureStorageContext.endpoint_url(service)
+      |> RestClient.new()
 
     request
     |> add_signature()

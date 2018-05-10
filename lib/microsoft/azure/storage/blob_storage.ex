@@ -8,7 +8,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
   @storage_api_version "2015-04-05"
 
-
   def create_container(context = %AzureStorageContext{}, container_name) do
     %{
       status: 201,
@@ -22,11 +21,9 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       %{}
       |> method(:put)
       |> url("/#{container_name |> String.downcase()}")
-      |> add_storage_context(context)
       |> add_param(:query, :restype, "container")
-      |> add_header("x-ms-date", DateTimeUtils.utc_now())
-      |> add_header("x-ms-version", @storage_api_version)
       |> body("")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
     {:ok,
@@ -39,14 +36,13 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   end
 
   def list_containers(context = %AzureStorageContext{}) do
-    %{status: 200, body: bodyXml} = %{}
-    |> method(:get)
-    |> url("/")
-    |> add_storage_context(context)
-    |> add_param(:query, :comp, "list")
-    |> add_header("x-ms-date", DateTimeUtils.utc_now())
-    |> add_header("x-ms-version", @storage_api_version)
-    |> sign_and_call(:blob_service)
+    %{status: 200, body: bodyXml} =
+      %{}
+      |> method(:get)
+      |> url("/")
+      |> add_param(:query, :comp, "list")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
+      |> sign_and_call(:blob_service)
 
     {:ok,
      bodyXml
@@ -78,14 +74,13 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         "x-ms-lease-status" => lease_status,
         "x-ms-request-id" => request_id
       }
-    } = %{}
-    |> method(:get)
-    |> url("/#{container_name}")
-    |> add_storage_context(context)
-    |> add_param(:query, :restype, "container")
-    |> add_header("x-ms-date", DateTimeUtils.utc_now())
-    |> add_header("x-ms-version", @storage_api_version)
-    |> sign_and_call(:blob_service)
+    } =
+      %{}
+      |> method(:get)
+      |> url("/#{container_name}")
+      |> add_param(:query, :restype, "container")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
+      |> sign_and_call(:blob_service)
 
     {:ok,
      %{
@@ -112,7 +107,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-blobs
 
-
     # query =
     #   opts
     #   |> Keyword.merge(main_query)
@@ -127,15 +121,14 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       headers: %{
         "x-ms-request-id" => request_id
       }
-    } = %{}
-    |> method(:get)
-    |> url("/#{container_name}")
-    |> add_storage_context(context)
-    |> add_param(:query, :comp, "list")
-    |> add_param(:query, :restype, "container")
-    |> add_header("x-ms-date", DateTimeUtils.utc_now())
-    |> add_header("x-ms-version", @storage_api_version)
-    |> sign_and_call(:blob_service)
+    } =
+      %{}
+      |> method(:get)
+      |> url("/#{container_name}")
+      |> add_param(:query, :comp, "list")
+      |> add_param(:query, :restype, "container")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
+      |> sign_and_call(:blob_service)
 
     {:ok,
      bodyXml
