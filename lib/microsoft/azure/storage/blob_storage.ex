@@ -198,8 +198,18 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  def set_container_acl(context = %AzureStorageContext{}, container_name, :blob) do
-    # https://docs.microsoft.com/en-us/rest/api/storageservices/set-container-acl
+  def set_container_acl_public_access_off(context = %AzureStorageContext{}, container_name),
+    do: set_container_acl(context, container_name, :off)
+
+  def set_container_acl_public_access_blob(context = %AzureStorageContext{}, container_name),
+    do: set_container_acl(context, container_name, :blob)
+
+  def set_container_acl_public_access_container(context = %AzureStorageContext{}, container_name),
+    do: set_container_acl(context, container_name, :container)
+
+  def set_container_acl(context = %AzureStorageContext{}, container_name, access_level)
+      when access_level |> is_atom() and access_level in [:off, :blob, :container] do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/set-container-acl#remarks
 
     response =
       new_azure_storage_request()
@@ -207,7 +217,13 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
       |> add_param(:query, :comp, "acl")
-      |> add_header("x-ms-blob-public-access", "blob")
+      |> (fn r ->
+            case access_level do
+              :off -> r
+              :blob -> r |> add_header("x-ms-blob-public-access", "blob")
+              :container -> r |> add_header("x-ms-blob-public-access", "container")
+            end
+          end).()
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
@@ -224,9 +240,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
            request_id: response.headers["x-ms-request-id"],
            etag: response.headers["etag"],
            last_modified: response.headers["last-modified"],
-           blob_public_access: response.headers["x-ms-blob-public-access"],
-           body: response.body,
-           policies: response.body |> process_body([], &BlobPolicy.deserialize/1)
+           body: response.body
          }}
     end
   end
