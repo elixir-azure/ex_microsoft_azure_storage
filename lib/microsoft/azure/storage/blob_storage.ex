@@ -24,6 +24,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       %{status: 201} ->
         {:ok,
          %{
+           headers: response.headers,
            url: response.url,
            status: response.status,
            request_id: response.headers["x-ms-request-id"],
@@ -34,6 +35,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   end
 
   def list_containers(context = %AzureStorageContext{}) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/list-containers2
     response =
       new_azure_storage_request()
       |> method(:get)
@@ -62,9 +64,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
              ]
            ]
          )
+         |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
          |> Map.put(:status, response.status)
-         |> Map.put(:request_id, response.headers[:"x-ms-request-id"])}
+         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
     end
   end
 
@@ -86,6 +89,38 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       %{status: 200} ->
         {:ok,
          %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           etag: response.headers["etag"],
+           last_modified: response.headers["last-modified"],
+           lease_state: response.headers["x-ms-lease-state"],
+           lease_status: response.headers["x-ms-lease-status"]
+         }}
+    end
+  end
+
+  def get_container_metadata(context = %AzureStorageContext{}, container_name) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-metadata
+
+    response =
+      new_azure_storage_request()
+      |> method(:head)
+      |> url("/#{container_name}")
+      |> add_param(:query, :restype, "container")
+      |> add_param(:query, :comp, "metadata")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
+      |> sign_and_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 200} ->
+        {:ok,
+         %{
+           headers: response.headers,
            url: response.url,
            status: response.status,
            request_id: response.headers["x-ms-request-id"],
@@ -114,6 +149,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       %{status: 202} ->
         {:ok,
          %{
+           headers: response.headers,
            url: response.url,
            status: response.status,
            request_id: response.headers["x-ms-request-id"]
@@ -175,9 +211,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
              ]
            ]
          )
+         |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
          |> Map.put(:status, response.status)
-         |> Map.put(:request_id, response.headers[:"x-ms-request-id"])}
+         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
     end
   end
 
