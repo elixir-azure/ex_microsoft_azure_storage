@@ -170,14 +170,14 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   defp get_container_acl_body(body) do
     body
     |> xpath(~x"/SignedIdentifiers/SignedIdentifier"l)
-    |> Enum.map(fn (node) ->
+    |> Enum.map(fn node ->
       %BlobPolicy{
         id: node |> xpath(~x"./Id/text()"),
         start: node |> xpath(~x"./AccessPolicy/Start/text()"),
         expiry: node |> xpath(~x"./AccessPolicy/Expiry/text()"),
-        permission: node |> xpath(~x"./AccessPolicy/Permission/text()"),
+        permission: node |> xpath(~x"./AccessPolicy/Permission/text()")
       }
-      end)
+    end)
   end
 
   def get_container_acl(context = %AzureStorageContext{}, container_name) do
@@ -206,12 +206,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
            etag: response.headers["etag"],
            last_modified: response.headers["last-modified"],
            blob_public_access: response.headers["x-ms-blob-public-access"],
-           policies: case response.body do
-             body when body != nil and body != "" ->
-              body
-              |> get_container_acl_body()
-             _ -> []
-           end
+           policies: response.body |> process_body([], &get_container_acl_body/1)
          }}
     end
   end
@@ -312,4 +307,8 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
      |> Map.put(:url, response.url)
      |> Map.put(:request_id, response.headers["x-ms-request-id"])}
   end
+
+  defp process_body(nil, default_value, _process_fn), do: default_value
+  defp process_body("", default_value, _process_fn), do: default_value
+  defp process_body(body, _default_value, process_fn), do: body |> process_fn.()
 end
