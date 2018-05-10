@@ -198,6 +198,39 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
+  def set_container_acl(context = %AzureStorageContext{}, container_name, :blob) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/set-container-acl
+
+    response =
+      new_azure_storage_request()
+      |> method(:put)
+      |> url("/#{container_name}")
+      |> add_param(:query, :restype, "container")
+      |> add_param(:query, :comp, "acl")
+      |> add_header("x-ms-blob-public-access", "blob")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
+      |> sign_and_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 200} ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           etag: response.headers["etag"],
+           last_modified: response.headers["last-modified"],
+           blob_public_access: response.headers["x-ms-blob-public-access"],
+           body: response.body,
+           policies: response.body |> process_body([], &BlobPolicy.deserialize/1)
+         }}
+    end
+  end
+
   def delete_container(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-container
     response =

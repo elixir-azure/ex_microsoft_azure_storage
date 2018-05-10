@@ -32,4 +32,7 @@ defmodule ExMicrosoftAzureStorage do
 
   def get_container_acl(container_name),
     do: storage_context() |> BlobStorage.get_container_acl(container_name)
+
+  def set_container_acl_public_access(container_name),
+    do: storage_context() |> BlobStorage.set_container_acl(container_name, :blob)
 end
