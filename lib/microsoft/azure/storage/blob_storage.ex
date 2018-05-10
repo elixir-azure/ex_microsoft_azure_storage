@@ -193,6 +193,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
            etag: response.headers["etag"],
            last_modified: response.headers["last-modified"],
            blob_public_access: response.headers["x-ms-blob-public-access"],
+           body: response.body,
            policies: response.body |> process_body([], &BlobPolicy.deserialize/1)
          }}
     end
