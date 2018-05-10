@@ -2,6 +2,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   alias Microsoft.Azure.Storage.AzureStorageContext
   alias Microsoft.Azure.Storage.RestClient
 
+  def new_azure_storage_request, do: %{}
+
   def method(request, m), do: request |> Map.put_new(:method, m)
 
   def url(request, u), do: request |> Map.put_new(:url, u)

@@ -18,7 +18,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         "x-ms-request-id" => request_id
       }
     } =
-      %{}
+      new_azure_storage_request()
       |> method(:put)
       |> url("/#{container_name |> String.downcase()}")
       |> add_param(:query, :restype, "container")
@@ -37,7 +37,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
   def list_containers(context = %AzureStorageContext{}) do
     %{status: 200, body: bodyXml} =
-      %{}
+      new_azure_storage_request()
       |> method(:get)
       |> url("/")
       |> add_param(:query, :comp, "list")
@@ -75,7 +75,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         "x-ms-request-id" => request_id
       }
     } =
-      %{}
+      new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
@@ -122,7 +122,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         "x-ms-request-id" => request_id
       }
     } =
-      %{}
+      new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}")
       |> add_param(:query, :comp, "list")
