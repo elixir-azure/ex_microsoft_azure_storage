@@ -32,9 +32,9 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
     |> xpath(~x"/SignedIdentifiers/SignedIdentifier"l)
     |> Enum.map(fn node ->
       %__MODULE__{
-        id: node |> xpath(~x"./Id/text()"),
-        start: node |> xpath(~x"./AccessPolicy/Start/text()"),
-        expiry: node |> xpath(~x"./AccessPolicy/Expiry/text()"),
+        id: node |> xpath(~x"./Id/text()"s),
+        start: node |> xpath(~x"./AccessPolicy/Start/text()"s),
+        expiry: node |> xpath(~x"./AccessPolicy/Expiry/text()"s),
         permission:
           node
           |> xpath(~x"./AccessPolicy/Permission/text()"s |> transform_by(&permission_parse/1))
@@ -50,7 +50,7 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
       <AccessPolicy>
         <Start><%= policy.start %></Start>
         <Expiry><%= policy.expiry %></Expiry>
-        <Permission><%= policy.permission %></Permission>
+        <Permission><%= policy.permission |> Microsoft.Azure.Storage.BlobPolicy.permission_serialize() %></Permission>
       </AccessPolicy>
     </SignedIdentifier>
     <% end %>
