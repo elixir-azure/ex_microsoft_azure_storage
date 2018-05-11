@@ -1,5 +1,6 @@
-defmodule ExMicrosoftAzureStorage do
+defmodule Sample do
   alias Microsoft.Azure.Storage.BlobStorage
+  alias Microsoft.Azure.Storage.BlobPolicy
   alias Microsoft.Azure.Storage.AzureStorageContext
 
   defp storage_context(),
@@ -8,6 +9,10 @@ defmodule ExMicrosoftAzureStorage do
       account_key: "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env(),
       cloud_environment_suffix: "core.windows.net"
     }
+
+  def fiddler_on(), do: "http_proxy" |> System.put_env("127.0.0.1:8888")
+
+  def fiddler_off(), do: "http_proxy" |> System.delete_env()
 
   def list_containers(),
     do: storage_context() |> BlobStorage.list_containers()
@@ -41,4 +46,16 @@ defmodule ExMicrosoftAzureStorage do
 
   def set_container_acl_public_access_container(container_name),
     do: storage_context() |> BlobStorage.set_container_acl_public_access_container(container_name)
+
+  def set_container_acl(),
+    do:
+      storage_context()
+      |> BlobStorage.set_container_acl("acltest", [
+        %BlobPolicy{
+          id: "pol1",
+          start: "2010-01-01T10:57:00.0000000Z",
+          expiry: "2019-01-01T10:57:00.0000000Z",
+          permission: [:list]
+        }
+      ])
 end
