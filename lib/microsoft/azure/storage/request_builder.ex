@@ -107,6 +107,17 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       |> Enum.map(fn {k, v} -> "#{k}:#{v}" end)
       |> Enum.join("\n")
 
+  def remove_empty_headers(request = %{headers: headers = %{}}) do
+    new_headers =
+      headers
+      |> Enum.into([])
+      |> Enum.filter(fn {_k, v} -> v != nil && String.length(v) > 0 end)
+      |> Enum.into(%{})
+
+    request
+    |> Map.put(:headers, new_headers)
+  end
+
   defp get_header(headers, name) do
     headers
     |> Map.get(name)
@@ -150,7 +161,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
         canonicalizedResource
       ]
       |> Enum.join("\n")
-      |> IO.inspect()
+      #|> IO.inspect()
 
     signature =
       :crypto.hmac(:sha256, storage_context.account_key |> Base.decode64!(), stringToSign)
@@ -171,6 +182,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       |> RestClient.new()
 
     request
+    |> remove_empty_headers()
     |> add_signature()
     |> Enum.into([])
     |> (&RestClient.request(connection, &1)).()

@@ -285,7 +285,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> method(:delete)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
-      |> body("")
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
@@ -300,6 +299,56 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
            url: response.url,
            status: response.status,
            request_id: response.headers["x-ms-request-id"]
+         }}
+    end
+  end
+
+  # AcquireLease TimeSpan? leaseTime, string proposedLeaseId
+  # BreakLease   TimeSpan? breakPeriod
+  # ChangeLease string proposedLeaseId,
+  # RenewLease
+  # ReleaseLease
+  #
+  # "x-ms-lease-action" acquire/renew/change/release/break
+  # "x-ms-lease-id"     Required for renew/change/release
+  # "x-ms-lease-break-period"  optional 0..60
+  # "x-ms-lease-duration" required for acquire. -1, 15..60
+  # "x-ms-proposed-lease-id" Optional for acquire, required for change
+  def container_lease_acquire(
+        context = %AzureStorageContext{},
+        container_name,
+        lease_duration,
+        proposed_lease_id \\ nil,
+        opts \\ []
+      )
+      when lease_duration |> is_integer() and (lease_duration == -1 or lease_duration in 15..60) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/lease-container
+
+    response =
+      new_azure_storage_request()
+      |> method(:put)
+      |> url("/#{container_name}")
+      |> add_param(:query, :comp, "lease")
+      |> add_param(:query, :restype, "container")
+      |> add_param(:query, opts)
+      |> add_header("x-ms-lease-action", "acquire")
+      |> add_header("x-ms-lease-duration", "#{lease_duration}")
+      |> add_header("x-ms-proposed-lease-id", "#{proposed_lease_id}")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
+      |> sign_and_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 201} ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           lease_id: response.headers["x-ms-lease-id"]
          }}
     end
   end
