@@ -8,7 +8,11 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def url(request, u), do: request |> Map.put_new(:url, u)
 
-  def body(request, body), do: request |> Map.put(:body, body)
+  def body(request, body),
+    do:
+      request
+      |> add_header("Content-Length", "#{body |> byte_size()}")
+      |> Map.put(:body, body)
 
   # request |> Map.update!(:headers, &Map.merge(&1, headers))
   def add_header(request = %{headers: headers}, k, v) when headers != nil,
@@ -141,6 +145,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
         canonicalizedResource
       ]
       |> Enum.join("\n")
+
+    # |> IO.inspect()
 
     signature =
       :crypto.hmac(:sha256, storage_context.account_key |> Base.decode64!(), stringToSign)
