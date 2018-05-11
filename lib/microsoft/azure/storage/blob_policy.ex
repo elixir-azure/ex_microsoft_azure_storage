@@ -11,6 +11,8 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
   defp perm_ser([:write | tail], acc), do: tail |> perm_ser("w" <> acc)
   defp perm_ser([:delete | tail], acc), do: tail |> perm_ser("d" <> acc)
   defp perm_ser([:list | tail], acc), do: tail |> perm_ser("l" <> acc)
+  # @blob_permissions %{read: "r", write: "w", delete: "d", list: "l"}
+  # defp perm_ser([a | tail], acc) when is_atom(a), do: tail |> perm_ser(Map.get(@blob_permissions, a, "") <> acc)
 
   defp perm_ser([unknown | _tail], _acc) when is_atom(unknown),
     do: raise("Received unknown permission #{inspect(unknown)}")
