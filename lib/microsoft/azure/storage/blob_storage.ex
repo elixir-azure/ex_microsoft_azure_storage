@@ -85,7 +85,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> method(:put)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
-      |> body(nil)
+      # |> body(nil)
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 
@@ -255,7 +255,8 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
       |> add_param(:query, :comp, "acl")
-      |> body(BlobPolicy.serialize(access_policies))
+      |> add_header("Content-Type", "application/xml")
+      |> body(access_policies |> BlobPolicy.serialize())
       |> add_ms_context(context, DateTimeUtils.utc_now(), @storage_api_version)
       |> sign_and_call(:blob_service)
 

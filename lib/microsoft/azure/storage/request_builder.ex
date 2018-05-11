@@ -107,6 +107,11 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       |> Enum.map(fn {k, v} -> "#{k}:#{v}" end)
       |> Enum.join("\n")
 
+  defp get_header(headers, name) do
+    headers
+    |> Map.get(name)
+  end
+
   def add_signature(
         # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
 
@@ -130,23 +135,22 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     stringToSign =
       [
         method |> Atom.to_string() |> String.upcase(),
-        headers |> Map.get("Content-Encoding"),
-        headers |> Map.get("Content-Language"),
-        headers |> Map.get("Content-Length"),
-        headers |> Map.get("Content-MD5"),
-        headers |> Map.get("ContentType"),
-        headers |> Map.get("Date"),
-        headers |> Map.get("If-Modified-Since"),
-        headers |> Map.get("If-Match"),
-        headers |> Map.get("If-None-Match"),
-        headers |> Map.get("If-Unmodified-Since"),
-        headers |> Map.get("Range"),
+        headers |> get_header("Content-Encoding"),
+        headers |> get_header("Content-Language"),
+        headers |> get_header("Content-Length"),
+        headers |> get_header("Content-MD5"),
+        headers |> get_header("Content-Type"),
+        headers |> get_header("Date"),
+        headers |> get_header("If-Modified-Since"),
+        headers |> get_header("If-Match"),
+        headers |> get_header("If-None-Match"),
+        headers |> get_header("If-Unmodified-Since"),
+        headers |> get_header("Range"),
         canonicalizedHeaders,
         canonicalizedResource
       ]
       |> Enum.join("\n")
-
-    # |> IO.inspect()
+      |> IO.inspect()
 
     signature =
       :crypto.hmac(:sha256, storage_context.account_key |> Base.decode64!(), stringToSign)

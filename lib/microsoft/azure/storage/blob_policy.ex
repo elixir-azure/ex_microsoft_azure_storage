@@ -27,14 +27,19 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
   defp perm(unknown, _acc) when is_binary(unknown),
     do: raise("Received unknown permission #{inspect(unknown)}")
 
+  defp date_parse(date) do
+    {:ok, result, 0} = date |> DateTime.from_iso8601()
+    result
+  end
+
   def deserialize(xml_body) do
     xml_body
     |> xpath(~x"/SignedIdentifiers/SignedIdentifier"l)
     |> Enum.map(fn node ->
       %__MODULE__{
         id: node |> xpath(~x"./Id/text()"s),
-        start: node |> xpath(~x"./AccessPolicy/Start/text()"s),
-        expiry: node |> xpath(~x"./AccessPolicy/Expiry/text()"s),
+        start: node |> xpath(~x"./AccessPolicy/Start/text()"s |> transform_by(&date_parse/1)),
+        expiry: node |> xpath(~x"./AccessPolicy/Expiry/text()"s |> transform_by(&date_parse/1)),
         permission:
           node
           |> xpath(~x"./AccessPolicy/Permission/text()"s |> transform_by(&permission_parse/1))
@@ -43,13 +48,14 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
   end
 
   @template """
+  <?xml version="1.0" encoding="utf-8"?>
   <SignedIdentifiers>
     <%= for policy <- @policies do %>
     <SignedIdentifier>
       <Id><%= policy.id %></Id>
       <AccessPolicy>
-        <Start><%= policy.start %></Start>
-        <Expiry><%= policy.expiry %></Expiry>
+        <Start><%= policy.start |> Microsoft.Azure.Storage.BlobPolicy.time_serialize() %></Start>
+        <Expiry><%= policy.expiry |> Microsoft.Azure.Storage.BlobPolicy.time_serialize() %></Expiry>
         <Permission><%= policy.permission |> Microsoft.Azure.Storage.BlobPolicy.permission_serialize() %></Permission>
       </AccessPolicy>
     </SignedIdentifier>
@@ -60,17 +66,35 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
   def serialize(policies) when is_list(policies),
     do: @template |> EEx.eval_string(assigns: [policies: policies])
 
-  # def serialize(policy = %__MODULE__{}) when is_map(policy),
-  #   do:
-  #     "<SignedIdentifier><Id>#{policy.id}</Id><AccessPolicy>" <>
-  #       "<Start>#{policy.start}</Start><Expiry>#{policy.expiry}</Expiry>" <>
-  #       "<Permission>#{policy.permission}</Permission>" <> "</AccessPolicy></SignedIdentifier>"
-
   # def serialize(policies) when is_list(policies) do
   #   inner_xml =
   #     policies
   #     |> Enum.map(&serialize/1)
   #     |> Enum.join("")
-  #   "<SignedIdentifiers>#{inner_xml}</SignedIdentifiers>"
+  #
+  #   bom = "\uFEFF"
+  #
+  #   bom <>
+  #     "<?xml version=\"1.0\" encoding=\"utf-8\"?>" <>
+  #     "<SignedIdentifiers>#{inner_xml}</SignedIdentifiers>"
   # end
+  #
+  # def serialize(policy = %__MODULE__{}) when is_map(policy),
+  #   do:
+  #     "<SignedIdentifier>" <>
+  #       "<Id>#{policy.id}</Id>" <>
+  #       "<AccessPolicy>" <>
+  #       "<Start>#{policy.start |> time_serialize()}</Start>" <>
+  #       "<Expiry>#{policy.expiry |> time_serialize()}</Expiry>" <>
+  #       "<Permission>#{policy.permission |> permission_serialize()}</Permission>" <>
+  #       "</AccessPolicy>" <> "</SignedIdentifier>"
+
+  # Azure expects dates in YYYY-MM-DDThh:mm:ss.fffffffTZD,
+  # where fffffff is the *seven*-digit millisecond representation.
+  # &DateTime.to_iso8601/1 only generates six-digit millisecond
+  def time_serialize(date_time),
+    do:
+      date_time
+      |> DateTime.to_iso8601()
+      |> String.replace_trailing("Z", "0Z")
 end
