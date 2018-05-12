@@ -1,10 +1,8 @@
 defmodule Microsoft.Azure.Storage.BlobStorage do
-  import Microsoft.Azure.Storage.RequestBuilder
-  import SweetXml
   use NamedArgs
-  alias Microsoft.Azure.Storage.DateTimeUtils
-  alias Microsoft.Azure.Storage.BlobPolicy
-  alias Microsoft.Azure.Storage.AzureStorageContext
+  import SweetXml
+  import Microsoft.Azure.Storage.RequestBuilder
+  alias Microsoft.Azure.Storage.{DateTimeUtils, BlobPolicy, AzureStorageContext}
 
   def list_containers(context = %AzureStorageContext{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-containers2
