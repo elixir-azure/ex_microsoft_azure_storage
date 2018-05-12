@@ -1,6 +1,8 @@
 defmodule Microsoft.Azure.Storage.ApiVersion do
   alias Microsoft.Azure.Storage.DateTimeUtils
 
+  def get_api_version(:storage), do: "2015-04-05"
+
   defstruct [:year, :month, :day]
 
   def parse(api_version) when is_binary(api_version),

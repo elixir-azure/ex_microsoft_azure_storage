@@ -1,6 +1,8 @@
 defmodule Microsoft.Azure.Storage.RequestBuilder do
+  import SweetXml
   alias Microsoft.Azure.Storage.AzureStorageContext
   alias Microsoft.Azure.Storage.RestClient
+  alias Microsoft.Azure.Storage.ApiVersion
 
   def new_azure_storage_request, do: %{}
 
@@ -88,11 +90,11 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   def add_storage_context(request, storage_context = %AzureStorageContext{}),
     do: request |> Map.put_new(:storage_context, storage_context)
 
-  def add_ms_context(request, storage_context, date, api_version) do
+  def add_ms_context(request, storage_context, date, service) do
     request
     |> add_storage_context(storage_context)
     |> add_header("x-ms-date", date)
-    |> add_header("x-ms-version", api_version)
+    |> add_header("x-ms-version", service |> ApiVersion.get_api_version())
   end
 
   defp primary(account_name), do: account_name |> String.replace("-secondary", "")
@@ -194,4 +196,19 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   def decode(%Tesla.Env{status: 200} = env, false), do: {:ok, env}
   def decode(%Tesla.Env{status: 200, body: body}, struct), do: Poison.decode(body, as: struct)
   def decode(response, _struct), do: {:error, response}
+
+  def create_error_response(response = %{}) do
+    {:error,
+     response.body
+     |> xmap(
+       code: ~x"/Error/Code/text()"s,
+       message: ~x"/Error/Message/text()"s,
+       authnErrDetail: ~x"/Error/AuthenticationErrorDetail/text()"s
+     )
+     |> Map.update!(:message, &String.split(&1, "\n"))
+     |> Map.put(:http_status, response.status)
+     |> Map.put(:url, response.url)
+     |> Map.put(:body, response.body)
+     |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+  end
 end

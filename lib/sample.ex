@@ -1,8 +1,6 @@
 defmodule Sample do
   use Timex
-  alias Microsoft.Azure.Storage.BlobStorage
-  alias Microsoft.Azure.Storage.BlobPolicy
-  alias Microsoft.Azure.Storage.AzureStorageContext
+  alias Microsoft.Azure.Storage.{BlobStorage, BlobPolicy, AzureStorageContext, ContainerLease}
 
   def storage_context(),
     do: %AzureStorageContext{
@@ -60,7 +58,7 @@ defmodule Sample do
     lease_duration = 16
 
     storage_context()
-    |> BlobStorage.container_lease_acquire(
+    |> ContainerLease.container_lease_acquire(
       container_name,
       lease_duration,
       "00000000-1111-2222-3333-444444444444"
@@ -82,7 +80,7 @@ defmodule Sample do
     lease_duration = 60
 
     storage_context()
-    |> BlobStorage.container_lease_acquire(
+    |> ContainerLease.container_lease_acquire(
       container_name,
       lease_duration,
       "00000000-1111-2222-3333-444444444444"
@@ -102,7 +100,7 @@ defmodule Sample do
     IO.puts("Call release now")
 
     storage_context()
-    |> BlobStorage.container_lease_release(
+    |> ContainerLease.container_lease_release(
       container_name,
       "00000000-1111-2222-3333-444444444444"
     )
@@ -119,28 +117,6 @@ defmodule Sample do
     end)
   end
 
-  def container_lease_acquire(container_name) do
-    lease_duration = 16
-
-    storage_context()
-    |> BlobStorage.container_lease_acquire(
-      container_name,
-      lease_duration,
-      "00000000-1111-2222-3333-444444444444"
-    )
-    |> IO.inspect()
-
-    0..lease_duration
-    |> Enum.each(fn i ->
-      Process.sleep(1000)
-
-      {:ok, %{lease_state: lease_state, lease_status: lease_status}} =
-        get_container_properties(container_name)
-
-      IO.puts("#{i}: lease_state=#{lease_state} lease_status=#{lease_status}")
-    end)
-  end
-
   def container_lease_renew(container_name) do
     lease_duration = 16
 
@@ -149,7 +125,7 @@ defmodule Sample do
        lease_id: lease_id
      }} =
       storage_context()
-      |> BlobStorage.container_lease_acquire(
+      |> ContainerLease.container_lease_acquire(
         container_name,
         lease_duration,
         "00000000-1111-2222-3333-444444444444"
@@ -159,11 +135,11 @@ defmodule Sample do
     IO.puts("Acquired lease #{lease_id}")
 
     0..lease_duration
-    |> Enum.each(fn i ->
+    |> Enum.each(fn _ ->
       Process.sleep(1000)
 
       storage_context()
-      |> BlobStorage.container_lease_renew(container_name, lease_id)
+      |> ContainerLease.container_lease_renew(container_name, lease_id)
       |> IO.inspect()
     end)
   end
@@ -176,7 +152,7 @@ defmodule Sample do
        lease_id: lease_id
      }} =
       storage_context()
-      |> BlobStorage.container_lease_acquire(
+      |> ContainerLease.container_lease_acquire(
         container_name,
         lease_duration,
         "00000000-1111-2222-3333-444444444444"
@@ -190,7 +166,7 @@ defmodule Sample do
     break_period = 5
 
     storage_context()
-    |> BlobStorage.container_lease_break(container_name, lease_id, break_period)
+    |> ContainerLease.container_lease_break(container_name, lease_id, break_period)
     |> IO.inspect()
   end
 
@@ -198,7 +174,7 @@ defmodule Sample do
     lease_duration = 60
 
     storage_context()
-    |> BlobStorage.container_lease_acquire(
+    |> ContainerLease.container_lease_acquire(
       container_name,
       lease_duration,
       "00000000-1111-2222-3333-444444444444"
@@ -208,8 +184,9 @@ defmodule Sample do
     Process.sleep(1000)
 
     IO.puts("Change to new lease ID ")
+
     storage_context()
-    |> BlobStorage.container_lease_change(
+    |> ContainerLease.container_lease_change(
       container_name,
       "00000000-1111-2222-3333-444444444444",
       "00000000-1111-2222-3333-555555555555"
