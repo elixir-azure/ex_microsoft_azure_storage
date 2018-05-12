@@ -78,6 +78,47 @@ defmodule Sample do
     end)
   end
 
+  def container_lease_release(container_name) do
+    lease_duration = 60
+
+    storage_context()
+    |> BlobStorage.container_lease_acquire(
+      container_name,
+      lease_duration,
+      "00000000-1111-2222-3333-444444444444"
+    )
+    |> IO.inspect()
+
+    0..3
+    |> Enum.each(fn i ->
+      Process.sleep(200)
+
+      {:ok, %{lease_state: lease_state, lease_status: lease_status}} =
+        get_container_properties(container_name)
+
+      IO.puts("#{i}: lease_state=#{lease_state} lease_status=#{lease_status}")
+    end)
+
+    IO.puts("Call release now")
+
+    storage_context()
+    |> BlobStorage.container_lease_release(
+      container_name,
+      "00000000-1111-2222-3333-444444444444"
+    )
+    |> IO.inspect()
+
+    0..3
+    |> Enum.each(fn i ->
+      Process.sleep(200)
+
+      {:ok, %{lease_state: lease_state, lease_status: lease_status}} =
+        get_container_properties(container_name)
+
+      IO.puts("#{i}: lease_state=#{lease_state} lease_status=#{lease_status}")
+    end)
+  end
+
   def container_lease_acquire(container_name) do
     lease_duration = 16
 

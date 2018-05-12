@@ -304,7 +304,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   end
 
   # ChangeLease string proposedLeaseId,
-  # ReleaseLease
+  #
   #
   # "x-ms-lease-action" acquire/renew/change/release/break
   # "x-ms-lease-id"     Required for renew/change/release
@@ -426,6 +426,29 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       202,
       fn_prepare_request,
       fn_prepare_response
+    )
+  end
+
+  # ReleaseLease
+  def container_lease_release(
+        context = %AzureStorageContext{},
+        container_name,
+        lease_id
+      ) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/lease-container#remarks
+
+    fn_prepare_request = fn request ->
+      request
+      |> add_header("x-ms-lease-action", "release")
+      |> add_header("x-ms-lease-id", "#{lease_id}")
+    end
+
+    context
+    |> container_lease_handler(
+      container_name,
+      200,
+      fn_prepare_request,
+      &pass_result_as_is/2
     )
   end
 
