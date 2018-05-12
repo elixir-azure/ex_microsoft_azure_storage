@@ -60,18 +60,96 @@ defmodule Sample do
     lease_duration = 16
 
     storage_context()
-    |> BlobStorage.container_lease_acquire(container_name, lease_duration, "00000000-1111-2222-3333-444444444444")
+    |> BlobStorage.container_lease_acquire(
+      container_name,
+      lease_duration,
+      "00000000-1111-2222-3333-444444444444"
+    )
     |> IO.inspect()
 
     0..lease_duration
-    |> Enum.each(
-      fn (i) ->
-        Process.sleep(1000)
+    |> Enum.each(fn i ->
+      Process.sleep(1000)
 
-        {:ok, %{ lease_state: lease_state, lease_status: lease_status, }} = get_container_properties(container_name)
+      {:ok, %{lease_state: lease_state, lease_status: lease_status}} =
+        get_container_properties(container_name)
 
-        IO.puts("#{i}: lease_state=#{lease_state} lease_status=#{lease_status}")
-      end
+      IO.puts("#{i}: lease_state=#{lease_state} lease_status=#{lease_status}")
+    end)
+  end
+
+  def container_lease_acquire(container_name) do
+    lease_duration = 16
+
+    storage_context()
+    |> BlobStorage.container_lease_acquire(
+      container_name,
+      lease_duration,
+      "00000000-1111-2222-3333-444444444444"
     )
+    |> IO.inspect()
+
+    0..lease_duration
+    |> Enum.each(fn i ->
+      Process.sleep(1000)
+
+      {:ok, %{lease_state: lease_state, lease_status: lease_status}} =
+        get_container_properties(container_name)
+
+      IO.puts("#{i}: lease_state=#{lease_state} lease_status=#{lease_status}")
+    end)
+  end
+
+  def container_lease_renew(container_name) do
+    lease_duration = 16
+
+    {:ok,
+     %{
+       lease_id: lease_id
+     }} =
+      storage_context()
+      |> BlobStorage.container_lease_acquire(
+        container_name,
+        lease_duration,
+        "00000000-1111-2222-3333-444444444444"
+      )
+      |> IO.inspect()
+
+    IO.puts("Acquired lease #{lease_id}")
+
+    0..lease_duration
+    |> Enum.each(fn i ->
+      Process.sleep(1000)
+
+      storage_context()
+      |> BlobStorage.container_lease_renew(container_name, lease_id)
+      |> IO.inspect()
+    end)
+  end
+
+  def container_lease_break(container_name) do
+    lease_duration = 60
+
+    {:ok,
+     %{
+       lease_id: lease_id
+     }} =
+      storage_context()
+      |> BlobStorage.container_lease_acquire(
+        container_name,
+        lease_duration,
+        "00000000-1111-2222-3333-444444444444"
+      )
+      |> IO.inspect()
+
+    IO.puts("Acquired lease #{lease_id}")
+
+    Process.sleep(1000)
+
+    break_period = 5
+
+    storage_context()
+    |> BlobStorage.container_lease_break(container_name, lease_id, break_period)
+    |> IO.inspect()
   end
 end

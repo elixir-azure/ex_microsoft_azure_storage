@@ -161,7 +161,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
         canonicalizedResource
       ]
       |> Enum.join("\n")
-      #|> IO.inspect()
+
+    # |> IO.inspect()
 
     signature =
       :crypto.hmac(:sha256, storage_context.account_key |> Base.decode64!(), stringToSign)
