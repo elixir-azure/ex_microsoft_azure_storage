@@ -193,4 +193,26 @@ defmodule Sample do
     |> BlobStorage.container_lease_break(container_name, lease_id, break_period)
     |> IO.inspect()
   end
+
+  def container_lease_acquire_and_change(container_name) do
+    lease_duration = 60
+
+    storage_context()
+    |> BlobStorage.container_lease_acquire(
+      container_name,
+      lease_duration,
+      "00000000-1111-2222-3333-444444444444"
+    )
+    |> IO.inspect()
+
+    Process.sleep(1000)
+
+    IO.puts("Change to new lease ID ")
+    storage_context()
+    |> BlobStorage.container_lease_change(
+      container_name,
+      "00000000-1111-2222-3333-444444444444",
+      "00000000-1111-2222-3333-555555555555"
+    )
+  end
 end
