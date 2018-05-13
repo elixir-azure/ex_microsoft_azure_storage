@@ -16,6 +16,14 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       |> add_header("Content-Length", "#{body |> byte_size()}")
       |> Map.put(:body, body)
 
+  def add_header_content_md5(request) do
+    body = request |> Map.get(:body)
+    md5 = :crypto.hash(:md5, body) |> Base.encode64()
+
+    request
+    |> add_header("Content-MD5", md5)
+  end
+
   # request |> Map.update!(:headers, &Map.merge(&1, headers))
   def add_header(request = %{headers: headers}, k, v) when headers != nil,
     do: request |> Map.put(:headers, headers |> Map.put(k, v))
@@ -203,7 +211,9 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
      |> xmap(
        code: ~x"/Error/Code/text()"s,
        message: ~x"/Error/Message/text()"s,
-       authnErrDetail: ~x"/Error/AuthenticationErrorDetail/text()"s
+       authentication_error_detail: ~x"/Error/AuthenticationErrorDetail/text()"s,
+       query_parameter_name: ~x"/Error/QueryParameterName/text()"s,
+       query_parameter_value: ~x"/Error/QueryParameterValue/text()"s
      )
      |> Map.update!(:message, &String.split(&1, "\n"))
      |> Map.put(:http_status, response.status)

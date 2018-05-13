@@ -1,6 +1,6 @@
 defmodule Sample do
   use Timex
-  alias Microsoft.Azure.Storage.{BlobStorage, BlobPolicy, AzureStorageContext, ContainerLease}
+  alias Microsoft.Azure.Storage.{BlobStorage, BlobPolicy, AzureStorageContext, ContainerLease, Blob}
 
   def storage_context(),
     do: %AzureStorageContext{
@@ -8,6 +8,16 @@ defmodule Sample do
       account_key: "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env(),
       cloud_environment_suffix: "core.windows.net"
     }
+
+  def put_block() do
+    blob_name = "68798"
+
+    storage_context()
+    |> Blob.put_block("$root", blob_name, "1", "Hallo")
+    storage_context()
+    |> Blob.put_block("$root", blob_name, 2, "Hallo Du da")
+  end
+
 
   def list_containers(),
     do: storage_context() |> BlobStorage.list_containers()
