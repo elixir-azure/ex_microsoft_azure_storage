@@ -24,6 +24,9 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> add_header("Content-MD5", md5)
   end
 
+  def add_header_if(request, false, _k, _v), do: request
+  def add_header_if(request, true, k, v), do: request |> add_header(k, v)
+
   # request |> Map.update!(:headers, &Map.merge(&1, headers))
   def add_header(request = %{headers: headers}, k, v) when headers != nil,
     do: request |> Map.put(:headers, headers |> Map.put(k, v))
@@ -43,6 +46,11 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
         add_optional_params(request, definitions, tail)
     end
   end
+
+  def add_param_if(request, false, _location, _key, _value), do: request
+
+  def add_param_if(request, true, location, key, value),
+    do: request |> add_param(location, key, value)
 
   def add_param(request, :body, :body, value), do: request |> Map.put(:body, value)
 

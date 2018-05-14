@@ -1,4 +1,5 @@
 defmodule Microsoft.Azure.Storage.Blob do
+  import SweetXml
   use NamedArgs
   # import SweetXml
   import Microsoft.Azure.Storage.RequestBuilder
@@ -13,7 +14,7 @@ defmodule Microsoft.Azure.Storage.Blob do
   The `put_block` operation creates a new block to be committed as part of a blob.
   """
   def put_block(context = %AzureStorageContext{}, container_name, blob_name, block_id, content)
-    when byte_size(content) <= @max_block_size_100MB do
+      when byte_size(content) <= @max_block_size_100MB do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/put-block
 
     response =
@@ -44,6 +45,118 @@ defmodule Microsoft.Azure.Storage.Blob do
            content_md5: response.headers["x-ms-request-server-encrypted"],
            body: response.body
          }}
+    end
+  end
+
+  @doc """
+  The `put_block_list` operation writes a blob by specifying the list of block IDs that make up the blob.
+  """
+  def put_block_list(context = %AzureStorageContext{}, container_name, blob_name, block_list)
+      when is_list(block_list) do
+    response =
+      new_azure_storage_request()
+      |> method(:put)
+      |> url("/#{container_name}/#{blob_name}")
+      |> add_param(:query, :comp, "blocklist")
+      |> body(block_list |> serialize_block_list())
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
+      |> sign_and_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 201} ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           etag: response.headers["etag"],
+           last_modified: response.headers["last-modified"],
+           server_encrypted: response.headers["x-ms-request-server-encrypted"],
+           content_md5: response.headers["Content-MD5"],
+           body: response.body
+         }}
+    end
+  end
+
+  @template_block_list """
+  <?xml version="1.0" encoding="utf-8"?>
+  <BlockList>
+    <%= for block <- @block_list do %>
+    <Latest><%= block |> Microsoft.Azure.Storage.Blob.to_block_id() %></Latest>
+    <% end %>
+  </BlockList>
+  """
+
+  defp serialize_block_list(block_list),
+    do: @template_block_list |> EEx.eval_string(assigns: [block_list: block_list])
+
+  defp deserialize_block_list(xml_body) do
+    deserialize_block = fn node ->
+      %{
+        name: node |> xpath(~x"./Name/text()"s),
+        size:
+          node
+          |> xpath(
+            ~x"./Size/text()"s
+            |> transform_by(fn t -> t |> Integer.parse() |> elem(0) end)
+          )
+      }
+    end
+
+    %{
+      committed_blocks:
+        xml_body
+        |> xpath(~x"/BlockList/CommittedBlocks/Block"l)
+        |> Enum.map(deserialize_block),
+      uncommitted_blocks:
+        xml_body
+        |> xpath(~x"/BlockList/UncommittedBlocks/Block"l)
+        |> Enum.map(deserialize_block)
+    }
+  end
+
+  def get_block_list(
+        context = %AzureStorageContext{},
+        container_name,
+        blob_name,
+        block_list_type \\ :all,
+        snapshot \\ nil
+      )
+      when block_list_type in [:all, :committed, :uncommitted] do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/get-block-list
+
+    response =
+      new_azure_storage_request()
+      |> method(:get)
+      |> url("/#{container_name}/#{blob_name}")
+      |> add_param(:query, :comp, "blocklist")
+      |> add_param(:query, :blocklisttype, block_list_type |> Atom.to_string())
+      |> add_param_if(snapshot != nil, :query, :snapshot, snapshot)
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
+      |> sign_and_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 200} ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           etag: response.headers["etag"],
+           last_modified: response.headers["last-modified"],
+           server_encrypted: response.headers["x-ms-request-server-encrypted"],
+           content_md5: response.headers["Content-MD5"],
+           body: response.body
+         }
+         |> Map.merge(response.body |> deserialize_block_list())}
     end
   end
 end

@@ -1,7 +1,7 @@
 defmodule Microsoft.Azure.Storage.ApiVersion do
   alias Microsoft.Azure.Storage.DateTimeUtils
 
-  #"2015-04-05"
+  # "2015-04-05"
   def get_api_version(:storage), do: "2016-05-31"
 
   defstruct [:year, :month, :day]

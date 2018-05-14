@@ -1,6 +1,13 @@
 defmodule Sample do
   use Timex
-  alias Microsoft.Azure.Storage.{BlobStorage, BlobPolicy, AzureStorageContext, ContainerLease, Blob}
+
+  alias Microsoft.Azure.Storage.{
+    BlobStorage,
+    BlobPolicy,
+    AzureStorageContext,
+    ContainerLease,
+    Blob
+  }
 
   def storage_context(),
     do: %AzureStorageContext{
@@ -10,14 +17,32 @@ defmodule Sample do
     }
 
   def put_block() do
-    blob_name = "68798"
+    blob_name = "1.txt"
 
     storage_context()
-    |> Blob.put_block("$root", blob_name, "1", "Hallo")
+    |> Blob.put_block("$root", blob_name, 0, "Hallo")
+    |> IO.inspect()
+
     storage_context()
-    |> Blob.put_block("$root", blob_name, 2, "Hallo Du da")
+    |> Blob.put_block("$root", blob_name, 1, " du")
+    |> IO.inspect()
+
+    storage_context()
+    |> Blob.put_block("$root", blob_name, 2, " yeah")
+    |> IO.inspect()
+
+    storage_context()
+    |> Blob.get_block_list("$root", blob_name)
+    |> IO.inspect()
+
+    storage_context()
+    |> Blob.put_block_list("$root", blob_name, [0,1,2])
+    |> IO.inspect()
+
+    storage_context()
+    |> Blob.get_block_list("$root", blob_name)
+    |> IO.inspect()
   end
-
 
   def list_containers(),
     do: storage_context() |> BlobStorage.list_containers()
