@@ -24,34 +24,18 @@ defmodule Sample do
       filename
       |> File.stream!([:raw, :read_ahead, :binary], 1024 * 1024)
       |> Stream.zip(1..50_000)
-      |> Stream.map(fn {content, block_id} ->
-        Task.async(fn ->
-          {:ok, _} = ctx |> Blob.put_block(container_name, blob_name, block_id, content)
+      |> Task.async_stream((fn {content, block_id} ->
+        {:ok, _} = ctx |> Blob.put_block(container_name, blob_name, block_id, content)
 
-          block_id
-        end)
-      end)
-      |> Enum.map(&Task.await(&1))
-      |> Enum.into([])
+        block_id
+      end), max_concurrency: 3, ordered: true, timeout: 10_000)
+      |> Stream.map(fn {:ok, block_id } -> block_id end)
+      |> Enum.to_list()
       |> IO.inspect()
 
     ctx
     |> Blob.put_block_list(container_name, blob_name, block_ids)
-
-    # upload_stream({:stream, stream, storage_context(), container_name, blob_name, 0})
   end
-
-  # defp upload_stream({:stream, stream, storage_context, container_name, blob_name, block_counter}) do
-  #   content =
-  #     stream
-  #     |> Enum.take(10)
-  #     |> Enum.join()
-  #   storage_context
-  #   |> Blob.put_block(container_name, blob_name, block_counter, content)
-  #   upload_stream(
-  #     {:stream, stream, storage_context, container_name, blob_name, block_counter + 1}
-  #   )
-  # end
 
   def put_block() do
     blob_name = "1.txt"
