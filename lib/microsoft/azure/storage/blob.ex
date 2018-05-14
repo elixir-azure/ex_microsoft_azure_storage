@@ -42,7 +42,7 @@ defmodule Microsoft.Azure.Storage.Blob do
            etag: response.headers["etag"],
            last_modified: response.headers["last-modified"],
            server_encrypted: response.headers["x-ms-request-server-encrypted"],
-           content_md5: response.headers["x-ms-request-server-encrypted"],
+           content_md5: response.headers["Content-MD5"],
            body: response.body
          }}
     end
@@ -72,8 +72,8 @@ defmodule Microsoft.Azure.Storage.Blob do
            headers: response.headers,
            url: response.url,
            status: response.status,
-           request_id: response.headers["x-ms-request-id"],
            etag: response.headers["etag"],
+           request_id: response.headers["x-ms-request-id"],
            last_modified: response.headers["last-modified"],
            server_encrypted: response.headers["x-ms-request-server-encrypted"],
            content_md5: response.headers["Content-MD5"],

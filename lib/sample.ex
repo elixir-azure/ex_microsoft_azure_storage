@@ -16,8 +16,48 @@ defmodule Sample do
       cloud_environment_suffix: "core.windows.net"
     }
 
+  def upload_file(filename, container_name) do
+    blob_name = String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
+
+    ctx = storage_context()
+
+    block_ids = filename
+    |> File.stream!([:raw, :read_ahead, :binary], 1024*1024)
+    |> Stream.zip(1..50_000)
+    |> Stream.map(fn { content, block_id } ->
+      { :ok, _ } = ctx |> Blob.put_block(container_name, blob_name, block_id, content)
+
+      block_id
+    end)
+    |> Enum.into([])
+
+    ctx
+    |> Blob.put_block_list(container_name, blob_name, block_ids)
+
+
+    #upload_stream({:stream, stream, storage_context(), container_name, blob_name, 0})
+  end
+
+  # defp upload_stream({:stream, stream, storage_context, container_name, blob_name, block_counter}) do
+  #   content =
+  #     stream
+  #     |> Enum.take(10)
+  #     |> Enum.join()
+  #   storage_context
+  #   |> Blob.put_block(container_name, blob_name, block_counter, content)
+  #   upload_stream(
+  #     {:stream, stream, storage_context, container_name, blob_name, block_counter + 1}
+  #   )
+  # end
+
   def put_block() do
     blob_name = "1.txt"
+
+    # "filename"
+    # |> File.stream!([:raw, :read_ahead, :binary], 1)
+    # |> Enum.take(20)
+    # |> Enum.join("")
+    # |> IO.puts()
 
     storage_context()
     |> Blob.put_block("$root", blob_name, 0, "Hallo")
@@ -36,7 +76,7 @@ defmodule Sample do
     |> IO.inspect()
 
     storage_context()
-    |> Blob.put_block_list("$root", blob_name, [0,1,2])
+    |> Blob.put_block_list("$root", blob_name, [0, 1, 2])
     |> IO.inspect()
 
     storage_context()
