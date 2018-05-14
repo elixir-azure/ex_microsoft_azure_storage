@@ -18,24 +18,27 @@ defmodule Sample do
 
   def upload_file(filename, container_name) do
     blob_name = String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
-
     ctx = storage_context()
 
-    block_ids = filename
-    |> File.stream!([:raw, :read_ahead, :binary], 1024*1024)
-    |> Stream.zip(1..50_000)
-    |> Stream.map(fn { content, block_id } ->
-      { :ok, _ } = ctx |> Blob.put_block(container_name, blob_name, block_id, content)
+    block_ids =
+      filename
+      |> File.stream!([:raw, :read_ahead, :binary], 1024 * 1024)
+      |> Stream.zip(1..50_000)
+      |> Stream.map(fn {content, block_id} ->
+        Task.async(fn ->
+          {:ok, _} = ctx |> Blob.put_block(container_name, blob_name, block_id, content)
 
-      block_id
-    end)
-    |> Enum.into([])
+          block_id
+        end)
+      end)
+      |> Enum.map(&Task.await(&1))
+      |> Enum.into([])
+      |> IO.inspect()
 
     ctx
     |> Blob.put_block_list(container_name, blob_name, block_ids)
 
-
-    #upload_stream({:stream, stream, storage_context(), container_name, blob_name, 0})
+    # upload_stream({:stream, stream, storage_context(), container_name, blob_name, 0})
   end
 
   # defp upload_stream({:stream, stream, storage_context, container_name, blob_name, block_counter}) do
