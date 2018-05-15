@@ -21,62 +21,12 @@ defmodule Sample do
       "C:/Users/chgeuer/Videos/Creating a Nerves Application with Windows and WSL-rzV0qfhzzqc.mkv"
 
     container_name = "videos"
-    ctx = storage_context()
 
-    ctx |> BlobStorage.create_container(container_name)
-    upload_file(container_name, filename)
-  end
+    storage_context()
+    |> BlobStorage.create_container(container_name)
 
-  def upload_file(container_name, filename) do
-    max_concurrency = 3
-    blob_name = String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
-    ctx = storage_context()
-
-    {:ok, %{uncommitted_blocks: uncommitted_blocks}} =
-      ctx |> Blob.get_block_list(container_name, blob_name, :all)
-
-    existing_block_ids =
-      uncommitted_blocks
-      |> Enum.map(fn %{name: name} -> name end)
-      |> IO.inspect()
-
-    block_ids =
-      filename
-      |> File.stream!([:raw, :read_ahead, :binary], 1024 * 1024)
-      |> Stream.zip(1..50_000)
-      |> Task.async_stream(
-        fn {content, block_id} ->
-          case Blob.to_block_id(block_id) in existing_block_ids do
-            false ->
-              IO.puts("Uploading #{block_id}")
-
-              {:ok, _} =
-                ctx
-                |> Blob.put_block(
-                  container_name,
-                  blob_name,
-                  block_id |> Blob.to_block_id(),
-                  content
-                )
-
-              IO.puts("          #{block_id} done")
-              Blob.to_block_id(block_id)
-
-            true ->
-              IO.puts("Skipping #{block_id}")
-              Blob.to_block_id(block_id)
-          end
-        end,
-        max_concurrency: max_concurrency,
-        ordered: true,
-        timeout: :infinity
-      )
-      |> Stream.map(fn {:ok, block_id} -> block_id end)
-      |> Enum.to_list()
-      |> IO.inspect()
-
-    ctx
-    |> Blob.put_block_list(container_name, blob_name, block_ids)
+    storage_context()
+    |> Blob.upload_file(container_name, filename)
   end
 
   def list_containers(),

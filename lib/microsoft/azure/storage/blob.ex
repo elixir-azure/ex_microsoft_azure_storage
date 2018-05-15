@@ -7,7 +7,8 @@ defmodule Microsoft.Azure.Storage.Blob do
 
   @max_block_size_100MB 104_857_600
 
-  def to_block_id(block_id) when is_binary(block_id), do: block_id # |> Base.encode64()
+  # |> Base.encode64()
+  def to_block_id(block_id) when is_binary(block_id), do: block_id
   def to_block_id(block_id) when is_integer(block_id), do: <<block_id::120>> |> Base.encode64()
 
   @doc """
@@ -159,5 +160,45 @@ defmodule Microsoft.Azure.Storage.Blob do
          }
          |> Map.merge(response.body |> deserialize_block_list())}
     end
+  end
+
+  def upload_file(context = %AzureStorageContext{}, container_name, filename) do
+    block_size = 1024 * 1024
+    max_concurrency = 3
+    blob_name = String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
+
+    {:ok, %{uncommitted_blocks: uncommitted_blocks, committed_blocks: committed_blocks}} =
+      context |> get_block_list(container_name, blob_name, :all)
+
+    existing_block_ids =
+      (uncommitted_blocks ++ committed_blocks)
+      |> Enum.map(fn %{name: name} -> name end)
+      |> Enum.uniq()
+
+    block_ids =
+      filename
+      |> File.stream!([:raw, :read_ahead, :binary], block_size)
+      |> Stream.zip(1..50_000)
+      |> Task.async_stream(
+        fn {content, i} ->
+          block_id = i |> to_block_id()
+
+          if !(block_id in existing_block_ids) do
+            {:ok, _} =
+              context
+              |> put_block(container_name, blob_name, block_id, content)
+          end
+
+          block_id
+        end,
+        max_concurrency: max_concurrency,
+        ordered: true,
+        timeout: :infinity
+      )
+      |> Stream.map(fn {:ok, block_id} -> block_id end)
+      |> Enum.to_list()
+
+    context
+    |> put_block_list(container_name, blob_name, block_ids)
   end
 end
