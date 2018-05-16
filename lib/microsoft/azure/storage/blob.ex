@@ -167,41 +167,69 @@ defmodule Microsoft.Azure.Storage.Blob do
     max_concurrency = 3
     blob_name = String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
 
+    %{size: size} = File.stat!(filename)
+
     existing_block_ids =
       case context |> get_block_list(container_name, blob_name, :all) do
         {:error, %{code: "BlobNotFound", http_status: 404}} ->
-          []
+          %{}
 
         {:ok, %{uncommitted_blocks: uncommitted_blocks, committed_blocks: committed_blocks}} ->
-          (uncommitted_blocks ++ committed_blocks)
-          |> Enum.map(fn %{name: name} -> name end)
-          |> Enum.uniq()
+          a =
+            uncommitted_blocks
+            |> Enum.reduce(%{}, fn %{name: name, size: size}, map ->
+              map |> Map.put(name, size)
+            end)
+
+          committed_blocks
+          |> Enum.reduce(a, fn %{name: name, size: size}, map -> map |> Map.put(name, size) end)
       end
 
+    {:ok, block_list_pid} = Agent.start_link(fn -> existing_block_ids end)
+
+    add_block = fn block_id, content ->
+      block_list_pid
+      |> Agent.update(&Map.put(&1, block_id, byte_size(content)))
+    end
+
+    uploaded_bytes = fn ->
+      block_list_pid
+      |> Agent.get(&(&1 |> Map.values() |> Enum.reduce(0, fn a, b -> a + b end)))
+    end
+
+    filename
+    |> File.stream!([:raw, :read_ahead, :binary], block_size)
+    |> Stream.zip(1..50_000)
+    |> Task.async_stream(
+      fn {content, i} ->
+        block_id =
+          i
+          |> to_block_id()
+
+        if !(existing_block_ids |> Map.has_key?(block_id)) do
+          {:ok, _} =
+            context
+            |> put_block(container_name, blob_name, block_id, content)
+
+          add_block.(block_id, content)
+
+          IO.puts("#{100 * uploaded_bytes.() / size}%")
+        end
+      end,
+      max_concurrency: max_concurrency,
+      ordered: true,
+      timeout: :infinity
+    )
+    |> Enum.to_list()
+
+    in_storage =
+      block_list_pid
+      |> Agent.get(&(&1 |> Map.keys() |> Enum.into([])))
+
     block_ids =
-      filename
-      |> File.stream!([:raw, :read_ahead, :binary], block_size)
-      |> Stream.zip(1..50_000)
-      |> Task.async_stream(
-        fn {content, i} ->
-          block_id = i |> to_block_id()
-
-          if !(block_id in existing_block_ids) do
-            IO.puts("Upload block #{block_id}")
-            {:ok, _} =
-              context
-              |> put_block(container_name, blob_name, block_id, content)
-            IO.puts("Done   block #{block_id}")
-          end
-
-          block_id
-        end,
-        max_concurrency: max_concurrency,
-        ordered: true,
-        timeout: :infinity
-      )
-      |> Stream.map(fn {:ok, block_id} -> block_id end)
-      |> Enum.to_list()
+      1..50_000
+      |> Enum.map(&to_block_id/1)
+      |> Enum.filter(&(&1 in in_storage))
 
     context
     |> put_block_list(container_name, blob_name, block_ids)
