@@ -167,13 +167,16 @@ defmodule Microsoft.Azure.Storage.Blob do
     max_concurrency = 3
     blob_name = String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
 
-    {:ok, %{uncommitted_blocks: uncommitted_blocks, committed_blocks: committed_blocks}} =
-      context |> get_block_list(container_name, blob_name, :all)
-
     existing_block_ids =
-      (uncommitted_blocks ++ committed_blocks)
-      |> Enum.map(fn %{name: name} -> name end)
-      |> Enum.uniq()
+      case context |> get_block_list(container_name, blob_name, :all) do
+        {:error, %{code: "BlobNotFound", http_status: 404}} ->
+          []
+
+        {:ok, %{uncommitted_blocks: uncommitted_blocks, committed_blocks: committed_blocks}} ->
+          (uncommitted_blocks ++ committed_blocks)
+          |> Enum.map(fn %{name: name} -> name end)
+          |> Enum.uniq()
+      end
 
     block_ids =
       filename
@@ -184,9 +187,11 @@ defmodule Microsoft.Azure.Storage.Blob do
           block_id = i |> to_block_id()
 
           if !(block_id in existing_block_ids) do
+            IO.puts("Upload block #{block_id}")
             {:ok, _} =
               context
               |> put_block(container_name, blob_name, block_id, content)
+            IO.puts("Done   block #{block_id}")
           end
 
           block_id
