@@ -137,11 +137,11 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
             ],
             cors_rules: [
               ~x"/StorageServiceProperties/Cors/CorsRule"l,
-              allowed_origins: ~x"./AllowedOrigins/text()"s,
-              allowed_methods: ~x"./AllowedMethods/text()"s,
               max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
-              exposed_headers: ~x"./ExposedHeaders/text()"s,
-              allowed_headers: ~x"./AllowedHeaders/text()"s,
+              allowed_origins: ~x"./AllowedOrigins/text()"s |> transform_by(&(&1 |> String.split(","))),
+              allowed_methods: ~x"./AllowedMethods/text()"s |> transform_by(&(&1 |> String.split(","))),
+              exposed_headers: ~x"./ExposedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
+              allowed_headers: ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
             ],
             default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
             delete_retention_policy: [
