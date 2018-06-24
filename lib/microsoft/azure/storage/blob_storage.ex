@@ -41,6 +41,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
+  defp to_bool("true"), do: :true
+  defp to_bool("false"), do: :false
+  defp to_bool(_), do: :false
+
   def get_blob_service_stats(context = %AzureStorageContext{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-stats
     response =
@@ -73,6 +77,85 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
          |> Map.put(:request_id, response.headers["x-ms-request-id"])}
     end
   end
+
+  def get_blob_service_properties(context = %AzureStorageContext{}) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-properties
+    response =
+      new_azure_storage_request()
+      |> method(:get)
+      |> url("/")
+      |> add_param(:query, :restype, "service")
+      |> add_param(:query, :comp, "properties")
+      |> add_ms_context(
+        context,
+        DateTimeUtils.utc_now(),
+        :storage
+      )
+      |> sign_and_call(:blob_service)
+
+      case response do
+        %{status: status} when 400 <= status and status < 500 ->
+          response |> create_error_response()
+
+        %{status: 200} ->
+          {:ok,
+           response.body
+           |> xmap(
+            logging: [
+              ~x"/StorageServiceProperties/Logging",
+              version: ~x"./Version/text()"s,
+              delete: ~x"./Delete/text()"s |> transform_by(&to_bool/1),
+              read: ~x"./Read/text()"s |> transform_by(&to_bool/1),
+              write: ~x"./Write/text()"s |> transform_by(&to_bool/1),
+              retention_policy: [
+                ~x"./RetentionPolicy",
+                enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+                days: ~x"./Days/text()"I
+              ]
+            ],
+            hour_metrics: [
+              ~x"/StorageServiceProperties/HourMetrics",
+              version: ~x"./Version/text()"s,
+              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+              include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
+              retention_policy: [
+                ~x"./RetentionPolicy",
+                enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+                days: ~x"./Days/text()"I
+              ]
+            ],
+            minutes_metrics: [
+              ~x"/StorageServiceProperties/MinuteMetrics",
+              version: ~x"./Version/text()"s,
+              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+              include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
+              retention_policy: [
+                ~x"./RetentionPolicy",
+                enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+                days: ~x"./Days/text()"I
+              ]
+            ],
+            cors_rules: [
+              ~x"/StorageServiceProperties/Cors/CorsRule"l,
+              allowed_origins: ~x"./AllowedOrigins/text()"s,
+              allowed_methods: ~x"./AllowedMethods/text()"s,
+              max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
+              exposed_headers: ~x"./ExposedHeaders/text()"s,
+              allowed_headers: ~x"./AllowedHeaders/text()"s,
+            ],
+            default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
+            delete_retention_policy: [
+              ~x"/StorageServiceProperties/DeleteRetentionPolicy",
+              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+              days: ~x"./Days/text()"I
+            ]
+           )
+           |> Map.put(:headers, response.headers)
+           |> Map.put(:url, response.url)
+           |> Map.put(:status, response.status)
+           |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+      end
+    end
 
   def create_container(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/create-container

@@ -1,6 +1,6 @@
 defmodule ExMicrosoftAzureStorageTest do
   use ExUnit.Case
-  doctest ExMicrosoftAzureStorage
+  # doctest ExMicrosoftAzureStorage
   alias Microsoft.Azure.Storage.ApiVersion
 
   import SweetXml

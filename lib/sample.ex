@@ -17,8 +17,7 @@ defmodule Sample do
     }
 
   def upload() do
-    filename =
-      "C:/Users/chgeuer/Videos/Creating a Nerves Application with Windows and WSL-rzV0qfhzzqc.mkv"
+    filename = "../../../Users/chgeuer/Videos/outbreak.mp4"
 
     container_name = "videos"
 
@@ -28,6 +27,9 @@ defmodule Sample do
     storage_context()
     |> Blob.upload_file(container_name, filename)
   end
+
+  def get_blob_service_properties(),
+    do: storage_context() |> BlobStorage.get_blob_service_properties()
 
   def list_containers(),
     do: storage_context() |> BlobStorage.list_containers()
@@ -83,7 +85,6 @@ defmodule Sample do
       lease_duration,
       "00000000-1111-2222-3333-444444444444"
     )
-    |> IO.inspect()
 
     0..lease_duration
     |> Enum.each(fn i ->
@@ -105,7 +106,6 @@ defmodule Sample do
       lease_duration,
       "00000000-1111-2222-3333-444444444444"
     )
-    |> IO.inspect()
 
     0..3
     |> Enum.each(fn i ->
@@ -124,7 +124,6 @@ defmodule Sample do
       container_name,
       "00000000-1111-2222-3333-444444444444"
     )
-    |> IO.inspect()
 
     0..3
     |> Enum.each(fn i ->
@@ -150,7 +149,6 @@ defmodule Sample do
         lease_duration,
         "00000000-1111-2222-3333-444444444444"
       )
-      |> IO.inspect()
 
     IO.puts("Acquired lease #{lease_id}")
 
@@ -160,7 +158,6 @@ defmodule Sample do
 
       storage_context()
       |> ContainerLease.container_lease_renew(container_name, lease_id)
-      |> IO.inspect()
     end)
   end
 
@@ -177,7 +174,6 @@ defmodule Sample do
         lease_duration,
         "00000000-1111-2222-3333-444444444444"
       )
-      |> IO.inspect()
 
     IO.puts("Acquired lease #{lease_id}")
 
@@ -187,7 +183,6 @@ defmodule Sample do
 
     storage_context()
     |> ContainerLease.container_lease_break(container_name, lease_id, break_period)
-    |> IO.inspect()
   end
 
   def container_lease_acquire_and_change(container_name) do
@@ -199,7 +194,6 @@ defmodule Sample do
       lease_duration,
       "00000000-1111-2222-3333-444444444444"
     )
-    |> IO.inspect()
 
     Process.sleep(1000)
 
