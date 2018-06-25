@@ -154,8 +154,24 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
            |> Map.put(:url, response.url)
            |> Map.put(:status, response.status)
            |> Map.put(:request_id, response.headers["x-ms-request-id"])}
-      end
     end
+  end
+
+  def set_blob_service_properties(context = %AzureStorageContext{}, properties) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/set-blob-service-properties
+    response =
+      new_azure_storage_request()
+      |> method(:put)
+      |> url("/")
+      |> add_param(:query, :restype, "service")
+      |> add_param(:query, :comp, "properties")
+      |> add_header("Content-Type", "application/xml")
+      |> body(properties |> BlobPolicy.serialize())
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
+      |> sign_and_call(:blob_service)
+
+    response
+  end
 
   def create_container(context = %AzureStorageContext{}, container_name) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/create-container
