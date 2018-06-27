@@ -207,7 +207,6 @@ defmodule Microsoft.Azure.Storage.Blob do
           |> to_block_id()
 
         if !(existing_block_ids |> Map.has_key?(block_id)) do
-
           IO.puts("Start to upload block #{i}")
 
           {:ok, _} =

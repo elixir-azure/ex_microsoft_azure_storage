@@ -1,7 +1,13 @@
 defmodule Microsoft.Azure.Storage.CorsRule do
   require EEx
 
-  defstruct [:allowed_origins, :allowed_methods, :max_age_in_seconds, :exposed_headers, :allowed_headers]
+  defstruct [
+    :allowed_origins,
+    :allowed_methods,
+    :max_age_in_seconds,
+    :exposed_headers,
+    :allowed_headers
+  ]
 
   @template """
   <Cors>
