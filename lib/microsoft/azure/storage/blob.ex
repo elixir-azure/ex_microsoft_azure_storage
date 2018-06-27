@@ -198,7 +198,7 @@ defmodule Microsoft.Azure.Storage.Blob do
     end
 
     filename
-    |> File.stream!([:raw, :read_ahead, :binary], block_size)
+    |> File.stream!([:read_ahead, :binary], block_size)
     |> Stream.zip(1..50_000)
     |> Task.async_stream(
       fn {content, i} ->
