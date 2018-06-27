@@ -13,12 +13,13 @@ defmodule Microsoft.Azure.Storage.CorsRule do
   <Cors>
     <%= for cors_rule <- @cors_rules do %>
     <CorsRule>
+      <MaxAgeInSeconds><%= cors_rule.max_age_in_seconds %></MaxAgeInSeconds>
       <AllowedOrigins><%= cors_rule.allowed_origins |> Enum.join(",") %></AllowedOrigins>
       <AllowedMethods><%= cors_rule.allowed_methods |> Enum.join(",") %></AllowedMethods>
-      <MaxAgeInSeconds><%= cors_rule.max_age_in_seconds</MaxAgeInSeconds>
       <ExposedHeaders><%= cors_rule.exposed_headers |> Enum.join(",") %></ExposedHeaders>
       <AllowedHeaders><%= cors_rule.allowed_headers |> Enum.join(",") %></AllowedHeaders>
-    </CorsRule><% end %>
+    </CorsRule>
+    <% end %>
   </Cors>
   """
 
