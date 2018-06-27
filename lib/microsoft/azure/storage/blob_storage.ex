@@ -127,7 +127,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
                days: ~x"./Days/text()"I
              ]
            ],
-           minutes_metrics: [
+           minute_metrics: [
              ~x"/StorageServiceProperties/MinuteMetrics",
              version: ~x"./Version/text()"s,
              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
@@ -164,7 +164,51 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  def set_blob_service_properties(context = %AzureStorageContext{}, properties) do
+
+  def serialize_blob_service_properties(service_properties) do
+    """
+    <?xml version="1.0" encoding="utf-8"?>
+    <StorageServiceProperties>
+    <DefaultServiceVersion>2017-07-29</DefaultServiceVersion>
+    <Logging>
+        <Version><%= @service_properties.logging.version %></Version>
+          <Delete><%= @service_properties.logging.delete %></Delete>
+          <Read><%= @service_properties.logging.read %></Read>
+          <Write><%= @service_properties.logging.write %></Write>
+          <RetentionPolicy>
+            <Enabled><%= @service_properties.logging.retention_policy.enabled %></Enabled>
+            <Days><%= @service_properties.logging.retention_policy.days %></Days>
+          </RetentionPolicy>
+      </Logging>
+      <HourMetrics>
+        <Version><%= @service_properties.hour_metrics.version %></Version>
+        <Enabled><%= @service_properties.hour_metrics.enabled %></Enabled>
+        <IncludeAPIs><%= @service_properties.hour_metrics.include_apis %></IncludeAPIs>
+        <RetentionPolicy>
+          <Enabled><%= @service_properties.hour_metrics.retention_policy.enabled %></Enabled>
+          <Days><%= @service_properties.hour_metrics.retention_policy.days %></Days>
+        </RetentionPolicy>
+      </HourMetrics>
+      <MinuteMetrics>
+        <Version><%= @service_properties.minute_metrics.version %></Version>
+        <Enabled><%= @service_properties.minute_metrics.enabled %></Enabled>
+        <IncludeAPIs><%= @service_properties.minute_metrics.include_apis %></IncludeAPIs>
+        <RetentionPolicy>
+          <Enabled><%= @service_properties.minute_metrics.retention_policy.enabled %></Enabled>
+          <Days><%= @service_properties.minute_metrics.retention_policy.days %></Days>
+        </RetentionPolicy>
+      </MinuteMetrics>
+      <%= @service_properties.cors_rules |> Microsoft.Azure.Storage.CorsRule.serialize() %>
+      <DeleteRetentionPolicy>
+        <Enabled><%= @service_properties.delete_retention_policy.enabled %></Enabled>
+        <Days><%= @service_properties.delete_retention_policy.days %></Days>
+      </DeleteRetentionPolicy>
+    </StorageServiceProperties>
+    """
+    |> EEx.eval_string(assigns: [service_properties: service_properties])
+  end
+
+  def set_blob_service_properties(context = %AzureStorageContext{}, service_properties) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-blob-service-properties
     response =
       new_azure_storage_request()
@@ -173,7 +217,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> add_param(:query, :restype, "service")
       |> add_param(:query, :comp, "properties")
       |> add_header("Content-Type", "application/xml")
-      |> body(properties |> BlobPolicy.serialize())
+      |> body(service_properties |> serialize_blob_service_properties())
       |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 

@@ -33,28 +33,28 @@ defmodule Sample do
     do: storage_context() |> BlobStorage.get_blob_service_properties()
 
   def set_blob_service_properties() do
-    new_properties = %{
+    service_properties = %{
       logging: %{
         version: "1.0",
         delete: false,
         read: false,
         write: false,
-        retention_policy: %{enabled: false, days: 0}
+        retention_policy: %{enabled: false }
       },
       hour_metrics: %{
         version: "1.0",
         enabled: true,
         include_apis: true,
-        retention_policy: %{enabled: true, days: 7}
+        retention_policy: %{enabled: true, days: 365}
       },
-      minutes_metrics: %{
+      minute_metrics: %{
         version: "1.0",
         enabled: false,
         include_apis: false,
-        retention_policy: %{enabled: false, days: 0}
+        retention_policy: %{enabled: false }
       },
       cors_rules: [
-        %CorsRule{
+        %{
           allowed_origins: ["http://localhost/"],
           allowed_methods: ["GET", "PUT", "DELETE"],
           max_age_in_seconds: 120,
@@ -62,11 +62,11 @@ defmodule Sample do
           allowed_headers: ["Content-Type"]
         }
       ],
-      default_service_version: "",
-      delete_retention_policy: %{enabled: false, days: 0}
+      default_service_version: "2017-07-29",
+      delete_retention_policy: %{enabled: false }
     }
 
-    storage_context() |> BlobStorage.set_blob_service_properties(new_properties)
+    storage_context() |> BlobStorage.set_blob_service_properties(service_properties)
   end
 
   def list_containers(),
