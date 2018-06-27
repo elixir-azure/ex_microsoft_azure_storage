@@ -41,9 +41,9 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  defp to_bool("true"), do: :true
-  defp to_bool("false"), do: :false
-  defp to_bool(_), do: :false
+  defp to_bool("true"), do: true
+  defp to_bool("false"), do: false
+  defp to_bool(_), do: false
 
   def get_blob_service_stats(context = %AzureStorageContext{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-stats
@@ -68,8 +68,11 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         {:ok,
          response.body
          |> xmap(
-           status: ~x"/StorageServiceStats/GeoReplication/Status/text()"s,
-           last_sync_time: ~x"/StorageServiceStats/GeoReplication/LastSyncTime/text()"s
+           geo_replication: [
+             ~x"/StorageServiceStats/GeoReplication",
+             status: ~x"./Status/text()"s,
+             last_sync_time: ~x"./LastSyncTime/text()"s
+           ]
          )
          |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
@@ -93,67 +96,71 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       )
       |> sign_and_call(:blob_service)
 
-      case response do
-        %{status: status} when 400 <= status and status < 500 ->
-          response |> create_error_response()
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
 
-        %{status: 200} ->
-          {:ok,
-           response.body
-           |> xmap(
-            logging: [
-              ~x"/StorageServiceProperties/Logging",
-              version: ~x"./Version/text()"s,
-              delete: ~x"./Delete/text()"s |> transform_by(&to_bool/1),
-              read: ~x"./Read/text()"s |> transform_by(&to_bool/1),
-              write: ~x"./Write/text()"s |> transform_by(&to_bool/1),
-              retention_policy: [
-                ~x"./RetentionPolicy",
-                enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-                days: ~x"./Days/text()"I
-              ]
-            ],
-            hour_metrics: [
-              ~x"/StorageServiceProperties/HourMetrics",
-              version: ~x"./Version/text()"s,
-              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-              include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
-              retention_policy: [
-                ~x"./RetentionPolicy",
-                enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-                days: ~x"./Days/text()"I
-              ]
-            ],
-            minutes_metrics: [
-              ~x"/StorageServiceProperties/MinuteMetrics",
-              version: ~x"./Version/text()"s,
-              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-              include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
-              retention_policy: [
-                ~x"./RetentionPolicy",
-                enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-                days: ~x"./Days/text()"I
-              ]
-            ],
-            cors_rules: [
-              ~x"/StorageServiceProperties/Cors/CorsRule"l,
-              max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
-              allowed_origins: ~x"./AllowedOrigins/text()"s |> transform_by(&(&1 |> String.split(","))),
-              allowed_methods: ~x"./AllowedMethods/text()"s |> transform_by(&(&1 |> String.split(","))),
-              exposed_headers: ~x"./ExposedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
-              allowed_headers: ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
-            ],
-            default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
-            delete_retention_policy: [
-              ~x"/StorageServiceProperties/DeleteRetentionPolicy",
-              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-              days: ~x"./Days/text()"I
-            ]
-           )
-           |> Map.put(:headers, response.headers)
-           |> Map.put(:url, response.url)
-           |> Map.put(:status, response.status)
-           |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+      %{status: 200} ->
+        {:ok,
+         response.body
+         |> xmap(
+           logging: [
+             ~x"/StorageServiceProperties/Logging",
+             version: ~x"./Version/text()"s,
+             delete: ~x"./Delete/text()"s |> transform_by(&to_bool/1),
+             read: ~x"./Read/text()"s |> transform_by(&to_bool/1),
+             write: ~x"./Write/text()"s |> transform_by(&to_bool/1),
+             retention_policy: [
+               ~x"./RetentionPolicy",
+               enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+               days: ~x"./Days/text()"I
+             ]
+           ],
+           hour_metrics: [
+             ~x"/StorageServiceProperties/HourMetrics",
+             version: ~x"./Version/text()"s,
+             enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+             include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
+             retention_policy: [
+               ~x"./RetentionPolicy",
+               enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+               days: ~x"./Days/text()"I
+             ]
+           ],
+           minutes_metrics: [
+             ~x"/StorageServiceProperties/MinuteMetrics",
+             version: ~x"./Version/text()"s,
+             enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+             include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
+             retention_policy: [
+               ~x"./RetentionPolicy",
+               enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+               days: ~x"./Days/text()"I
+             ]
+           ],
+           cors_rules: [
+             ~x"/StorageServiceProperties/Cors/CorsRule"l,
+             max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
+             allowed_origins:
+               ~x"./AllowedOrigins/text()"s |> transform_by(&(&1 |> String.split(","))),
+             allowed_methods:
+               ~x"./AllowedMethods/text()"s |> transform_by(&(&1 |> String.split(","))),
+             exposed_headers:
+               ~x"./ExposedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
+             allowed_headers:
+               ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(",")))
+           ],
+           default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
+           delete_retention_policy: [
+             ~x"/StorageServiceProperties/DeleteRetentionPolicy",
+             enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+             days: ~x"./Days/text()"I
+           ]
+         )
+         |> Map.put(:headers, response.headers)
+         |> Map.put(:url, response.url)
+         |> Map.put(:status, response.status)
+         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
     end
   end
 
