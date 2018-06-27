@@ -187,7 +187,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     data
     |> add_header(
       "Authorization",
-      "SharedKey #{storage_context.account_name}:#{signature}"
+      "SharedKey #{storage_context.account_name |> primary()}:#{signature}"
     )
   end
 
