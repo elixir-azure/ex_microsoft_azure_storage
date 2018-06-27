@@ -10,6 +10,15 @@ defmodule Sample do
     CorsRule
   }
 
+  import XmlBuilder
+
+  def person(id, first, last) do
+    element(:person, %{id: id}, [
+      element(:first, first),
+      element(:last, last)
+    ])
+  end
+
   def storage_context(),
     do: %AzureStorageContext{
       account_name: "SAMPLE_STORAGE_ACCOUNT_NAME" |> System.get_env(),
@@ -32,41 +41,13 @@ defmodule Sample do
   def get_blob_service_properties(),
     do: storage_context() |> BlobStorage.get_blob_service_properties()
 
-  def set_blob_service_properties() do
-    service_properties = %{
-      logging: %{
-        version: "1.0",
-        delete: false,
-        read: false,
-        write: false,
-        retention_policy: %{enabled: false }
-      },
-      hour_metrics: %{
-        version: "1.0",
-        enabled: true,
-        include_apis: true,
-        retention_policy: %{enabled: true, days: 365}
-      },
-      minute_metrics: %{
-        version: "1.0",
-        enabled: false,
-        include_apis: false,
-        retention_policy: %{enabled: false }
-      },
-      cors_rules: [
-        %{
-          allowed_origins: ["http://localhost/"],
-          allowed_methods: ["GET", "PUT", "DELETE"],
-          max_age_in_seconds: 120,
-          exposed_headers: ["Content-Type"],
-          allowed_headers: ["Content-Type"]
-        }
-      ],
-      default_service_version: "2017-07-29",
-      delete_retention_policy: %{enabled: false }
-    }
+  def re_set_blob_service_properties() do
+    props =
+      storage_context()
+      |> BlobStorage.get_blob_service_properties()
+      |> elem(1)
 
-    storage_context() |> BlobStorage.set_blob_service_properties(service_properties)
+    BlobStorage.set_blob_service_properties(storage_context(), props)
   end
 
   def list_containers(),
