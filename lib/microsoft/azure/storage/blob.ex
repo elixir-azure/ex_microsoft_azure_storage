@@ -55,6 +55,7 @@ defmodule Microsoft.Azure.Storage.Blob do
   """
   def put_block_list(context = %AzureStorageContext{}, container_name, blob_name, block_list)
       when is_list(block_list) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/put-block-list
     response =
       new_azure_storage_request()
       |> method(:put)
@@ -163,7 +164,8 @@ defmodule Microsoft.Azure.Storage.Blob do
   end
 
   def upload_file(context = %AzureStorageContext{}, container_name, filename) do
-    block_size = 1024 * 1024
+    mega_byte = 1024 * 1024
+    block_size = 4 * mega_byte
     max_concurrency = 3
     blob_name = String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
 
