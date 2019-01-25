@@ -6,12 +6,30 @@ defmodule Microsoft.Azure.Storage.QueueStorage do
   alias Microsoft.Azure.Storage.DateTimeUtils
   alias Microsoft.Azure.Storage.AzureStorageContext.Queue
 
-  def create_queue(%Queue{storage_context: context, queue_name: queue_name}) do
+  def create_queue(%Queue{storage_context: context, queue_name: queue_name}, opts \\ []) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/create-queue4
+
+    #
+    # QueueStorage.create_queue(queue, meta: %{"a" => "b", "c" => "d"})
+    #
+    # x-ms-meta-a: b
+    # x-ms-meta-c: d
+    #
+
+    %{timeout: timeout, meta: meta} =
+      case [timeout: 0, meta: %{}]
+           |> Keyword.merge(opts)
+           |> Enum.into(%{}) do
+        %{timeout: timeout, meta: meta} when 0 <= timeout and timeout <= 30 and is_map(meta) ->
+          %{timeout: timeout, meta: meta}
+      end
+
     response =
       new_azure_storage_request()
       |> method(:put)
       |> url("/#{queue_name}")
+      |> add_param_if(timeout > 0, :query, :timeout, timeout)
+      |> add_header_x_ms_meta(meta)
       |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
@@ -19,7 +37,40 @@ defmodule Microsoft.Azure.Storage.QueueStorage do
       %{status: status} when 400 <= status and status < 500 ->
         response |> create_error_response()
 
-      %{status: 201} ->
+      %{status: status} when status == 201 or status == 204 ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           last_modified: response.headers["last-modified"]
+         }}
+    end
+  end
+
+  def delete_queue(%Queue{storage_context: context, queue_name: queue_name}, opts \\ []) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-queue3
+    %{timeout: timeout} =
+      case [timeout: 0]
+           |> Keyword.merge(opts)
+           |> Enum.into(%{}) do
+        %{timeout: timeout} when 0 <= timeout and timeout <= 30 -> %{timeout: timeout}
+      end
+
+    response =
+      new_azure_storage_request()
+      |> method(:delete)
+      |> url("/#{queue_name}")
+      |> add_param_if(timeout > 0, :query, :timeout, timeout)
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
+      |> sign_and_call(:queue_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: status} when status == 201 or status == 204 ->
         {:ok,
          %{
            headers: response.headers,
@@ -31,6 +82,96 @@ defmodule Microsoft.Azure.Storage.QueueStorage do
          }}
     end
   end
+
+  def get_queue_metadata(%Queue{storage_context: context, queue_name: queue_name}, opts \\ []) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/get-queue-metadata
+
+    %{timeout: timeout} =
+      case [timeout: 0]
+           |> Keyword.merge(opts)
+           |> Enum.into(%{}) do
+        %{timeout: timeout} when 0 <= timeout and timeout <= 30 -> %{timeout: timeout}
+      end
+
+    response =
+      new_azure_storage_request()
+      |> method(:get)
+      |> url("/#{queue_name}")
+      |> add_param(:query, :comp, "metadata")
+      |> add_param_if(timeout > 0, :query, :timeout, timeout)
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
+      |> sign_and_call(:queue_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 200} ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           approximate_message_count: response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0),
+           meta: response |> extract_x_ms_meta_headers()
+        }}
+    end
+  end
+
+  defp extract_x_ms_meta_headers(response) do
+    response.headers
+    |> Enum.filter(fn ({k,_v}) -> String.starts_with?(k, "x-ms-meta-") end)
+    |> Enum.map(fn ({"x-ms-meta-" <> k, v}) -> {k, v} end)
+    |> Enum.into(%{})
+  end
+
+  def set_queue_metadata(%Queue{storage_context: context, queue_name: queue_name}, opts \\ []) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/set-queue-metadata
+
+    #
+    # QueueStorage.set_queue_metadata(queue, timeout: 3, meta: %{"a" => "b", "c" => "d"})
+    #
+    # x-ms-meta-a: b
+    # x-ms-meta-c: d
+    #
+
+    %{timeout: timeout, meta: meta} =
+      case [timeout: 0, meta: %{}]
+           |> Keyword.merge(opts)
+           |> Enum.into(%{}) do
+        %{timeout: timeout, meta: meta} when 0 <= timeout and timeout <= 30 and is_map(meta) ->
+          %{timeout: timeout, meta: meta}
+      end
+
+    response =
+      new_azure_storage_request()
+      |> method(:put)
+      |> url("/#{queue_name}")
+      |> add_param(:query, :comp, "metadata")
+      |> add_param_if(timeout > 0, :query, :timeout, timeout)
+      |> add_header_x_ms_meta(meta)
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
+      |> sign_and_call(:queue_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: status} when status == 201 or status == 204 ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           approximate_message_count: response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0),
+           meta: response |> extract_x_ms_meta_headers()
+         }}
+    end
+  end
+
+
 
   @seconds_7_days 7 * 24 * 60 * 60
 

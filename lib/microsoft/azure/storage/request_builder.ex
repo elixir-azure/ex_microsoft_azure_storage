@@ -33,6 +33,9 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def add_header(request, k, v), do: request |> Map.put(:headers, %{k => v})
 
+  def add_header_x_ms_meta(request, kvp = %{}), do: kvp
+    |> Enum.reduce(request, fn {k, v}, r -> r |> add_header("x-ms-meta-" <> k, v) end)
+
   def add_optional_params(request, _, []), do: request
 
   def add_optional_params(request, definitions, [{key, value} | tail]) do
@@ -239,7 +242,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
        query_parameter_value: ~x"/Error/QueryParameterValue/text()"s
      )
      |> Map.update!(:message, &String.split(&1, "\n"))
-     |> Map.put(:http_status, response.status)
+     |> Map.put(:status, response.status)
      |> Map.put(:url, response.url)
      |> Map.put(:body, response.body)
      |> Map.put(:request_id, response.headers["x-ms-request-id"])}
