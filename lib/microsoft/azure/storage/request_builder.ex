@@ -156,10 +156,16 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     canonicalizedHeaders = headers |> canonicalized_headers()
 
     canonicalizedResource =
-      "/#{storage_context.account_name |> primary()}#{url}\n" <>
-        (query
-         |> Enum.sort_by(& &1)
-         |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
+      case query do
+        [] ->
+          "/#{storage_context.account_name |> primary()}#{url}"
+
+        _ ->
+          "/#{storage_context.account_name |> primary()}#{url}\n" <>
+            (query
+             |> Enum.sort_by(& &1)
+             |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
+      end
 
     stringToSign =
       [
@@ -180,6 +186,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       ]
       |> Enum.join("\n")
 
+    # |> IO.inspect(label: "stringToSign")
+
     signature =
       :crypto.hmac(:sha256, storage_context.account_key |> Base.decode64!(), stringToSign)
       |> Base.encode64()
@@ -189,6 +197,15 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       "Authorization",
       "SharedKey #{storage_context.account_name |> primary()}:#{signature}"
     )
+  end
+
+  def add_signature(data = %{}), do: data |> add_missing(:query, []) |> add_signature()
+
+  def add_missing(map, key, value) do
+    case map do
+      %{^key => _} -> map
+      %{} -> map |> Map.put(key, value)
+    end
   end
 
   def sign_and_call(request = %{storage_context: storage_context}, service)

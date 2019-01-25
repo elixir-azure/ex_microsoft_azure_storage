@@ -3,6 +3,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   import SweetXml
   import Microsoft.Azure.Storage.RequestBuilder
   alias Microsoft.Azure.Storage.{DateTimeUtils, BlobPolicy, AzureStorageContext}
+  alias Microsoft.Azure.Storage.AzureStorageContext.Container, as: Container
 
   def list_containers(context = %AzureStorageContext{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-containers2
@@ -184,7 +185,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     response
   end
 
-  def create_container(context = %AzureStorageContext{}, container_name) do
+  def create_container(%Container{storage_context: context, container_name: container_name}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/create-container
     response =
       new_azure_storage_request()
@@ -212,7 +213,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  def get_container_properties(context = %AzureStorageContext{}, container_name) do
+  def get_container_properties(%Container{
+        storage_context: context,
+        container_name: container_name
+      }) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-properties
     response =
       new_azure_storage_request()
@@ -241,7 +245,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  def get_container_metadata(context = %AzureStorageContext{}, container_name) do
+  def get_container_metadata(%Container{storage_context: context, container_name: container_name}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-metadata
 
     response =
@@ -272,7 +276,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  def get_container_acl(context = %AzureStorageContext{}, container_name) do
+  def get_container_acl(%Container{storage_context: context, container_name: container_name}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-acl
 
     response =
@@ -304,16 +308,19 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  def set_container_acl_public_access_off(context = %AzureStorageContext{}, container_name),
-    do: set_container_acl(context, container_name, :off)
+  def set_container_acl_public_access_off(container = %Container{}),
+    do: container |> set_container_acl(:off)
 
-  def set_container_acl_public_access_blob(context = %AzureStorageContext{}, container_name),
-    do: set_container_acl(context, container_name, :blob)
+  def set_container_acl_public_access_blob(container = %Container{}),
+    do: container |> set_container_acl(:blob)
 
-  def set_container_acl_public_access_container(context = %AzureStorageContext{}, container_name),
-    do: set_container_acl(context, container_name, :container)
+  def set_container_acl_public_access_container(container = %Container{}),
+    do: container |> set_container_acl(:container)
 
-  def set_container_acl(context = %AzureStorageContext{}, container_name, access_level)
+  def set_container_acl(
+        %Container{storage_context: context, container_name: container_name},
+        access_level
+      )
       when access_level |> is_atom() and access_level in [:off, :blob, :container] do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-container-acl#remarks
 
@@ -351,7 +358,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  def set_container_acl(context = %AzureStorageContext{}, container_name, access_policies)
+  def set_container_acl(
+        %Container{storage_context: context, container_name: container_name},
+        access_policies
+      )
       when access_policies |> is_list() do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-container-acl#remarks
 
@@ -384,7 +394,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  def delete_container(context = %AzureStorageContext{}, container_name) do
+  def delete_container(%Container{storage_context: context, container_name: container_name}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-container
     response =
       new_azure_storage_request()
@@ -410,8 +420,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   end
 
   def list_blobs(
-        context = %AzureStorageContext{},
-        container_name,
+        %Container{storage_context: context, container_name: container_name},
         opts \\ [
           prefix: nil,
           delimiter: nil,

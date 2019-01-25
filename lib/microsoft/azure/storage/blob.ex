@@ -3,7 +3,11 @@ defmodule Microsoft.Azure.Storage.Blob do
   use NamedArgs
   # import SweetXml
   import Microsoft.Azure.Storage.RequestBuilder
-  alias Microsoft.Azure.Storage.{DateTimeUtils, AzureStorageContext}
+
+  alias Microsoft.Azure.Storage.{
+    DateTimeUtils,
+    AzureStorageContext.Container
+  }
 
   @max_block_size_100MB 104_857_600
 
@@ -14,7 +18,12 @@ defmodule Microsoft.Azure.Storage.Blob do
   @doc """
   The `put_block` operation creates a new block to be committed as part of a blob.
   """
-  def put_block(context = %AzureStorageContext{}, container_name, blob_name, block_id, content)
+  def put_block(
+        %Container{storage_context: context, container_name: container_name},
+        blob_name,
+        block_id,
+        content
+      )
       when is_binary(block_id) and byte_size(content) <= @max_block_size_100MB do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/put-block
 
@@ -53,7 +62,11 @@ defmodule Microsoft.Azure.Storage.Blob do
   @doc """
   The `put_block_list` operation writes a blob by specifying the list of block IDs that make up the blob.
   """
-  def put_block_list(context = %AzureStorageContext{}, container_name, blob_name, block_list)
+  def put_block_list(
+        %Container{storage_context: context, container_name: container_name},
+        blob_name,
+        block_list
+      )
       when is_list(block_list) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/put-block-list
     response =
@@ -123,8 +136,7 @@ defmodule Microsoft.Azure.Storage.Blob do
   end
 
   def get_block_list(
-        context = %AzureStorageContext{},
-        container_name,
+        %Container{storage_context: context, container_name: container_name},
         blob_name,
         block_list_type \\ :all,
         snapshot \\ nil
@@ -163,7 +175,10 @@ defmodule Microsoft.Azure.Storage.Blob do
     end
   end
 
-  def upload_file(context = %AzureStorageContext{}, container_name, filename) do
+  def upload_file(
+        container = %Container{storage_context: context, container_name: container_name},
+        filename
+      ) do
     mega_byte = 1024 * 1024
     block_size = 4 * mega_byte
     max_concurrency = 3
@@ -212,8 +227,8 @@ defmodule Microsoft.Azure.Storage.Blob do
           IO.puts("Start to upload block #{i}")
 
           {:ok, _} =
-            context
-            |> put_block(container_name, blob_name, block_id, content)
+            container
+            |> put_block(blob_name, block_id, content)
 
           add_block.(block_id, content)
 
@@ -235,7 +250,7 @@ defmodule Microsoft.Azure.Storage.Blob do
       |> Enum.map(&to_block_id/1)
       |> Enum.filter(&(&1 in in_storage))
 
-    context
-    |> put_block_list(container_name, blob_name, block_ids)
+    container
+    |> put_block_list(blob_name, block_ids)
   end
 end
