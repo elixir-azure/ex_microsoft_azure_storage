@@ -35,9 +35,10 @@ defmodule Microsoft.Azure.Storage.AzureStorageContext do
   def endpoint_hostname(context = %__MODULE__{}, service) when is_atom(service),
     do: "#{context.account_name}.#{@endpoint_names[service]}.#{context.cloud_environment_suffix}"
 
-  def container(storage_context = %AzureStorageContext{}, container_name) when is_binary(container_name),
-     do: %Container{storage_context: storage_context, container_name: container_name}
+  def container(storage_context = %AzureStorageContext{}, container_name)
+      when is_binary(container_name),
+      do: %Container{storage_context: storage_context, container_name: container_name}
 
   def queue(storage_context = %AzureStorageContext{}, queue_name) when is_binary(queue_name),
-    do: %Queue{ storage_context: storage_context, queue_name: queue_name}
+    do: %Queue{storage_context: storage_context, queue_name: queue_name}
 end

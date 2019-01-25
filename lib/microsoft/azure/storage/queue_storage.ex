@@ -32,13 +32,35 @@ defmodule Microsoft.Azure.Storage.QueueStorage do
     end
   end
 
+  @seconds_7_days 7 * 24 * 60 * 60
+
   def put_message(
         %Queue{storage_context: context, queue_name: queue_name},
         message,
-        visibilitytimeout \\ 0,
-        messagettl \\ 7 * 3600 * 24
-      ) do
+        opts \\ []
+      )
+      when is_binary(message) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/put-message
+
+    %{
+      visibilitytimeout: visibilitytimeout,
+      messagettl: messagettl
+    } =
+      case [visibilitytimeout: 0, messagettl: 0]
+           |> Keyword.merge(opts)
+           |> Enum.into(%{}) do
+        %{
+          visibilitytimeout: visibilitytimeout,
+          messagettl: messagettl
+        }
+        when visibilitytimeout >= 0 and visibilitytimeout <= @seconds_7_days and
+               (messagettl == -1 or messagettl == 0 or
+                  (messagettl >= 1 and messagettl <= @seconds_7_days)) ->
+          %{
+            visibilitytimeout: visibilitytimeout,
+            messagettl: messagettl
+          }
+      end
 
     body = "<QueueMessage><MessageText>#{message |> Base.encode64()}</MessageText></QueueMessage>"
 
@@ -46,8 +68,8 @@ defmodule Microsoft.Azure.Storage.QueueStorage do
       new_azure_storage_request()
       |> method(:post)
       |> url("/#{queue_name}/messages")
-      |> add_param(:query, :visibilitytimeout, visibilitytimeout)
-      |> add_param(:query, :messagettl, messagettl)
+      |> add_param_if(visibilitytimeout > 0, :query, :visibilitytimeout, visibilitytimeout)
+      |> add_param_if(messagettl != 0, :query, :messagettl, messagettl)
       |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> body(body)
       |> sign_and_call(:queue_service)
@@ -80,15 +102,30 @@ defmodule Microsoft.Azure.Storage.QueueStorage do
     end
   end
 
-  def get_message(
-        %Queue{storage_context: context, queue_name: queue_name},
-        numofmessages \\ 1,
-        visibilitytimeout \\ 30,
-        timeout \\ 30
-      )
-      when numofmessages >= 1 and numofmessages <= 32 and
-             visibilitytimeout > 1 and visibilitytimeout <= 7 * 24 * 60 * 60 do
+  def get_message(%Queue{storage_context: context, queue_name: queue_name}, opts \\ []) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-message
+
+    %{
+      numofmessages: numofmessages,
+      visibilitytimeout: visibilitytimeout,
+      timeout: timeout
+    } =
+      case [numofmessages: 1, visibilitytimeout: 0, timeout: 0]
+           |> Keyword.merge(opts)
+           |> Enum.into(%{}) do
+        %{
+          numofmessages: numofmessages,
+          visibilitytimeout: visibilitytimeout,
+          timeout: timeout
+        }
+        when is_integer(numofmessages) and numofmessages >= 1 and numofmessages <= 32 and
+               visibilitytimeout > 1 and visibilitytimeout <= @seconds_7_days ->
+          %{
+            numofmessages: numofmessages,
+            visibilitytimeout: visibilitytimeout,
+            timeout: timeout
+          }
+      end
 
     response =
       new_azure_storage_request()
