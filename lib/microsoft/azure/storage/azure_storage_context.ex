@@ -3,6 +3,7 @@ defmodule Microsoft.Azure.Storage.AzureStorageContext do
   alias __MODULE__.Container
   alias __MODULE__.Queue
 
+  @derive {Inspect, except: [:account_key]}
   @enforce_keys [:account_name]
   defstruct [:account_name, :account_key, :cloud_environment_suffix]
 
