@@ -253,4 +253,41 @@ defmodule Microsoft.Azure.Storage.Blob do
     container
     |> put_block_list(blob_name, block_ids)
   end
+
+  def delete_blob(%Container{storage_context: context, container_name: container_name}, blob_name, opts \\ []) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-blob
+
+    %{snapshot: snapshot, timeout: timeout} =
+    case [snapshot: :nil, timeout: -1]
+         |> Keyword.merge(opts)
+         |> Enum.into(%{}) do
+      %{snapshot: snapshot, timeout: timeout} -> %{snapshot: snapshot, timeout: timeout}
+    end
+
+
+    response =
+      new_azure_storage_request()
+      |> method(:delete)
+      |> url("/#{container_name}/#{blob_name}")
+      |> add_param_if(snapshot != :nil, :query, :snapshot, snapshot)
+      |> add_param_if(timeout > 0, :query, :timeout, timeout)
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
+      |> sign_and_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 202} ->
+        {:ok,
+         %{
+           headers: response.headers,
+           url: response.url,
+           status: response.status,
+           request_id: response.headers["x-ms-request-id"],
+           delete_type_permanent: response.headers["x-ms-delete-type-permanent"]
+         }}
+    end
+  end
+
 end

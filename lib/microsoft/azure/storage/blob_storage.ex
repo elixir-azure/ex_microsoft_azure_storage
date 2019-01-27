@@ -432,13 +432,19 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-blobs
 
+
     response =
       new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}")
       |> add_param(:query, :comp, "list")
       |> add_param(:query, :restype, "container")
-      |> add_param(:query, opts)
+      |> add_param_if(opts[:prefix] != nil, :query, :prefix, opts[:prefix])
+      |> add_param_if(opts[:delimiter] != nil, :query, :delimiter, opts[:delimiter])
+      |> add_param_if(opts[:marker] != nil, :query, :marker, opts[:marker])
+      |> add_param_if(opts[:maxresults] != nil, :query, :maxresults, opts[:maxresults])
+      |> add_param_if(opts[:timeout] != nil, :query, :timeout, opts[:timeout])
+      |> add_param_if(opts[:include] != nil, :query, :include, opts[:include])
       |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
@@ -467,8 +473,11 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
                content_disposition: ~x"./Content-Disposition/text()"s,
                cache_control: ~x"./Cache-Control/text()"s,
                blob_type: ~x"./BlobType/text()"s,
+               access_tier: ~x"./AccessTier/text()"s,
+               access_tier_inferred: ~x"./AccessTierInferred/text()"s,
                lease_status: ~x"./LeaseStatus/text()"s,
-               lease_state: ~x"./LeaseState/text()"s
+               lease_state: ~x"./LeaseState/text()"s,
+               server_encrypted: ~x"./ServerEncrypted/text()"s
              ]
            ]
          )
