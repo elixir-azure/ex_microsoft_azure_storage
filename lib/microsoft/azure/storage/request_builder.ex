@@ -178,7 +178,6 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
              |> Enum.sort_by(& &1)
              |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
       end
-      |> IO.inspect(label: "canonicalizedResource")
 
     stringToSign =
       [
@@ -198,7 +197,6 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
         canonicalizedResource
       ]
       |> Enum.join("\n")
-      |> IO.inspect(label: "stringToSign")
 
     signature =
       :crypto.hmac(:sha256, storage_context.account_key |> Base.decode64!(), stringToSign)
