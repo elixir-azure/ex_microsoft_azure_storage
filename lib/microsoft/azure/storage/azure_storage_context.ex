@@ -4,18 +4,8 @@ defmodule Microsoft.Azure.Storage.AzureStorageContext do
   alias __MODULE__.Queue
 
   @derive {Inspect, except: [:account_key]}
-  @enforce_keys [:account_name]
-  defstruct [:account_name, :account_key, :cloud_environment_suffix]
-
-  defmodule Container do
-    @enforce_keys [:storage_context, :container_name]
-    defstruct [:storage_context, :container_name]
-  end
-
-  defmodule Queue do
-    @enforce_keys [:storage_context, :queue_name]
-    defstruct [:storage_context, :queue_name]
-  end
+  @enforce_keys []
+  defstruct [:account_name, :account_key, :cloud_environment_suffix, :is_development_factory]
 
   @endpoint_names %{
     blob_service: "blob",
@@ -24,10 +14,31 @@ defmodule Microsoft.Azure.Storage.AzureStorageContext do
     file_service: "file"
   }
 
+  def development_factory(),
+    do: %__MODULE__{
+      # https://docs.microsoft.com/en-us/azure/storage/common/storage-use-emulator#authenticating-requests-against-the-storage-emulator
+      account_name: "devstoreaccount1",
+      account_key:
+        "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==",
+      is_development_factory: true
+    }
+
   def secondary(context = %__MODULE__{}),
     do:
       context
       |> Map.update!(:account_name, &(&1 <> "-secondary"))
+
+  def endpoint_url(context = %__MODULE__{is_development_factory: true}, service)
+      when is_atom(service) do
+    port =
+      case service do
+        :blob_service -> 10000
+        :queue_service -> 10001
+        :table_service -> 10002
+      end
+
+    "http://127.0.0.1:#{port}/#{context.account_name}/"
+  end
 
   def endpoint_url(context = %__MODULE__{}, service) when is_atom(service),
     do: "https://" <> endpoint_hostname(context, service)
@@ -35,9 +46,19 @@ defmodule Microsoft.Azure.Storage.AzureStorageContext do
   def endpoint_hostname(context = %__MODULE__{}, service) when is_atom(service),
     do: "#{context.account_name}.#{@endpoint_names[service]}.#{context.cloud_environment_suffix}"
 
+  defmodule Container do
+    @enforce_keys [:storage_context, :container_name]
+    defstruct [:storage_context, :container_name]
+  end
+
   def container(storage_context = %AzureStorageContext{}, container_name)
       when is_binary(container_name),
       do: %Container{storage_context: storage_context, container_name: container_name}
+
+  defmodule Queue do
+    @enforce_keys [:storage_context, :queue_name]
+    defstruct [:storage_context, :queue_name]
+  end
 
   def queue(storage_context = %AzureStorageContext{}, queue_name) when is_binary(queue_name),
     do: %Queue{storage_context: storage_context, queue_name: queue_name}

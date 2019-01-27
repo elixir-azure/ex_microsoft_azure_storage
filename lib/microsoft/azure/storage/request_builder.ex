@@ -33,8 +33,10 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def add_header(request, k, v), do: request |> Map.put(:headers, %{k => v})
 
-  def add_header_x_ms_meta(request, kvp = %{}), do: kvp
-    |> Enum.reduce(request, fn {k, v}, r -> r |> add_header("x-ms-meta-" <> k, v) end)
+  def add_header_x_ms_meta(request, kvp = %{}),
+    do:
+      kvp
+      |> Enum.reduce(request, fn {k, v}, r -> r |> add_header("x-ms-meta-" <> k, v) end)
 
   def add_optional_params(request, _, []), do: request
 
@@ -152,11 +154,18 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
           url: url,
           query: query,
           headers: headers = %{},
-          storage_context: storage_context = %AzureStorageContext{}
+          storage_context:
+            storage_context = %AzureStorageContext{is_development_factory: is_development_factory}
         }
       )
       when is_map(data) do
     canonicalizedHeaders = headers |> canonicalized_headers()
+
+    url =
+      case is_development_factory do
+        true -> "/devstoreaccount1#{url}"
+        _ -> url
+      end
 
     canonicalizedResource =
       case query do
@@ -169,6 +178,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
              |> Enum.sort_by(& &1)
              |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
       end
+      |> IO.inspect(label: "canonicalizedResource")
 
     stringToSign =
       [
@@ -188,8 +198,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
         canonicalizedResource
       ]
       |> Enum.join("\n")
-
-    # |> IO.inspect(label: "stringToSign")
+      |> IO.inspect(label: "stringToSign")
 
     signature =
       :crypto.hmac(:sha256, storage_context.account_key |> Base.decode64!(), stringToSign)

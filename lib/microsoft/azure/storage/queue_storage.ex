@@ -113,16 +113,17 @@ defmodule Microsoft.Azure.Storage.QueueStorage do
            url: response.url,
            status: response.status,
            request_id: response.headers["x-ms-request-id"],
-           approximate_message_count: response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0),
+           approximate_message_count:
+             response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0),
            meta: response |> extract_x_ms_meta_headers()
-        }}
+         }}
     end
   end
 
   defp extract_x_ms_meta_headers(response) do
     response.headers
-    |> Enum.filter(fn ({k,_v}) -> String.starts_with?(k, "x-ms-meta-") end)
-    |> Enum.map(fn ({"x-ms-meta-" <> k, v}) -> {k, v} end)
+    |> Enum.filter(fn {k, _v} -> String.starts_with?(k, "x-ms-meta-") end)
+    |> Enum.map(fn {"x-ms-meta-" <> k, v} -> {k, v} end)
     |> Enum.into(%{})
   end
 
@@ -165,13 +166,12 @@ defmodule Microsoft.Azure.Storage.QueueStorage do
            url: response.url,
            status: response.status,
            request_id: response.headers["x-ms-request-id"],
-           approximate_message_count: response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0),
+           approximate_message_count:
+             response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0),
            meta: response |> extract_x_ms_meta_headers()
          }}
     end
   end
-
-
 
   @seconds_7_days 7 * 24 * 60 * 60
 
