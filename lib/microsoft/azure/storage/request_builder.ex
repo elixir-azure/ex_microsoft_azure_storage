@@ -1,6 +1,6 @@
 defmodule Microsoft.Azure.Storage.RequestBuilder do
   import SweetXml
-  alias Microsoft.Azure.Storage.AzureStorageContext
+  alias Microsoft.Azure.Storage
   alias Microsoft.Azure.Storage.RestClient
   alias Microsoft.Azure.Storage.ApiVersion
 
@@ -33,10 +33,19 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def add_header(request, k, v), do: request |> Map.put(:headers, %{k => v})
 
+  @prefix_x_ms_meta "x-ms-meta-"
+
   def add_header_x_ms_meta(request, kvp = %{}),
     do:
       kvp
-      |> Enum.reduce(request, fn {k, v}, r -> r |> add_header("x-ms-meta-" <> k, v) end)
+      |> Enum.reduce(request, fn {k, v}, r -> r |> add_header(@prefix_x_ms_meta <> k, v) end)
+
+  def extract_x_ms_meta_headers(response) do
+    response.headers
+    |> Enum.filter(fn {k, _v} -> String.starts_with?(k, @prefix_x_ms_meta) end)
+    |> Enum.map(fn {@prefix_x_ms_meta <> k, v} -> {k, v} end)
+    |> Enum.into(%{})
+  end
 
   def add_optional_params(request, _, []), do: request
 
@@ -108,7 +117,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       |> Enum.filter(fn {_, value} -> value != nil && value != "" end)
       |> Enum.into([])
 
-  def add_storage_context(request, storage_context = %AzureStorageContext{}),
+  def add_storage_context(request, storage_context = %Storage{}),
     do: request |> Map.put_new(:storage_context, storage_context)
 
   def add_ms_context(request, storage_context, date, service) do
@@ -155,7 +164,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
           query: query,
           headers: headers = %{},
           storage_context:
-            storage_context = %AzureStorageContext{is_development_factory: is_development_factory}
+            storage_context = %Storage{is_development_factory: is_development_factory}
         }
       )
       when is_map(data) do
@@ -222,7 +231,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       when is_atom(service) do
     connection =
       storage_context
-      |> AzureStorageContext.endpoint_url(service)
+      |> Storage.endpoint_url(service)
       |> RestClient.new()
 
     request

@@ -1,8 +1,4 @@
-defmodule Microsoft.Azure.Storage.AzureStorageContext do
-  alias __MODULE__
-  alias __MODULE__.Container
-  alias __MODULE__.Queue
-
+defmodule Microsoft.Azure.Storage do
   @derive {Inspect, except: [:account_key]}
   @enforce_keys []
   defstruct [:account_name, :account_key, :cloud_environment_suffix, :is_development_factory]
@@ -43,23 +39,6 @@ defmodule Microsoft.Azure.Storage.AzureStorageContext do
   def endpoint_url(context = %__MODULE__{}, service) when is_atom(service),
     do: "https://" <> endpoint_hostname(context, service)
 
-  def endpoint_hostname(context = %__MODULE__{}, service) when is_atom(service),
+  defp endpoint_hostname(context = %__MODULE__{}, service) when is_atom(service),
     do: "#{context.account_name}.#{@endpoint_names[service]}.#{context.cloud_environment_suffix}"
-
-  defmodule Container do
-    @enforce_keys [:storage_context, :container_name]
-    defstruct [:storage_context, :container_name]
-  end
-
-  def container(storage_context = %AzureStorageContext{}, container_name)
-      when is_binary(container_name),
-      do: %Container{storage_context: storage_context, container_name: container_name}
-
-  defmodule Queue do
-    @enforce_keys [:storage_context, :queue_name]
-    defstruct [:storage_context, :queue_name]
-  end
-
-  def queue(storage_context = %AzureStorageContext{}, queue_name) when is_binary(queue_name),
-    do: %Queue{storage_context: storage_context, queue_name: queue_name}
 end

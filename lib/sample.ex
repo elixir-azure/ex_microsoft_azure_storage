@@ -1,15 +1,8 @@
 defmodule Sample do
   use Timex
 
-  alias Microsoft.Azure.Storage.{
-    BlobStorage,
-    BlobPolicy,
-    AzureStorageContext,
-    AzureStorageContext.Container,
-    ContainerLease,
-    Blob,
-    CorsRule
-  }
+  alias Microsoft.Azure.Storage
+  alias Microsoft.Azure.Storage.{BlobStorage, BlobPolicy, Container, ContainerLease, Blob}
 
   import XmlBuilder
 
@@ -21,22 +14,22 @@ defmodule Sample do
   end
 
   def storage_context(),
-    do: %AzureStorageContext{
+    do: %Storage{
       account_name: "SAMPLE_STORAGE_ACCOUNT_NAME" |> System.get_env(),
       account_key: "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env(),
       cloud_environment_suffix: "core.windows.net"
     }
 
   def upload() do
-    filename = "C:/Users/chgeuer/Desktop/files/magazines/capital 2018-09.pdf"
+    filename = "C:/Users/chgeuer/Desktop/Konstantin/VID_20181213_141227.mp4"
     # ""../../../Users/chgeuer/Videos/outbreak.mp4"
 
     container =
       storage_context()
-      |> AzureStorageContext.container("videos")
+      |> Container.new("videos")
 
     container
-    |> BlobStorage.create_container()
+    |> Container.create_container()
 
     container
     |> Blob.upload_file(filename)
@@ -58,7 +51,7 @@ defmodule Sample do
   def list_containers(),
     do:
       storage_context()
-      |> BlobStorage.list_containers()
+      |> Container.list_containers()
 
   def get_blob_service_stats(),
     do: storage_context() |> BlobStorage.get_blob_service_stats()
@@ -66,62 +59,62 @@ defmodule Sample do
   def create_container(container_name),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.create_container()
+      |> Container.new(container_name)
+      |> Container.create_container()
 
   def delete_container(container_name),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.delete_container()
+      |> Container.new(container_name)
+      |> Container.delete_container()
 
   def list_blobs(container_name, opts \\ []),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.list_blobs(opts)
+      |> Container.new(container_name)
+      |> Container.list_blobs(opts)
 
   def get_container_properties(container_name),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.get_container_properties()
+      |> Container.new(container_name)
+      |> Container.get_container_properties()
 
   def get_container_metadata(container_name),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.get_container_metadata()
+      |> Container.new(container_name)
+      |> Container.get_container_metadata()
 
   def get_container_acl(container_name),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.get_container_acl()
+      |> Container.new(container_name)
+      |> Container.get_container_acl()
 
   def set_container_acl_public_access_off(container_name),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.set_container_acl_public_access_off()
+      |> Container.new(container_name)
+      |> Container.set_container_acl_public_access_off()
 
   def set_container_acl_public_access_blob(container_name),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.set_container_acl_public_access_blob()
+      |> Container.new(container_name)
+      |> Container.set_container_acl_public_access_blob()
 
   def set_container_acl_public_access_container(container_name),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.set_container_acl_public_access_container()
+      |> Container.new(container_name)
+      |> Container.set_container_acl_public_access_container()
 
   def set_container_acl(container_name),
     do:
       storage_context()
-      |> AzureStorageContext.container(container_name)
-      |> BlobStorage.set_container_acl([
+      |> Container.new(container_name)
+      |> Container.set_container_acl([
         %BlobPolicy{
           id: "pol1",
           start: Timex.now() |> Timex.shift(minutes: -10),
@@ -134,7 +127,7 @@ defmodule Sample do
     lease_duration = 16
 
     storage_context()
-    |> AzureStorageContext.container(container_name)
+    |> Container.new(container_name)
     |> ContainerLease.container_lease_acquire(
       lease_duration,
       "00000000-1111-2222-3333-444444444444"
@@ -155,7 +148,7 @@ defmodule Sample do
     lease_duration = 60
 
     storage_context()
-    |> AzureStorageContext.container(container_name)
+    |> Container.new(container_name)
     |> ContainerLease.container_lease_acquire(
       lease_duration,
       "00000000-1111-2222-3333-444444444444"
@@ -174,7 +167,7 @@ defmodule Sample do
     IO.puts("Call release now")
 
     storage_context()
-    |> AzureStorageContext.container(container_name)
+    |> Container.new(container_name)
     |> ContainerLease.container_lease_release("00000000-1111-2222-3333-444444444444")
 
     0..3
@@ -196,7 +189,7 @@ defmodule Sample do
        lease_id: lease_id
      }} =
       storage_context()
-      |> AzureStorageContext.container(container_name)
+      |> Container.new(container_name)
       |> ContainerLease.container_lease_acquire(
         lease_duration,
         "00000000-1111-2222-3333-444444444444"
@@ -209,7 +202,7 @@ defmodule Sample do
       Process.sleep(1000)
 
       storage_context()
-      |> AzureStorageContext.container(container_name)
+      |> Container.new(container_name)
       |> ContainerLease.container_lease_renew(lease_id)
     end)
   end
@@ -222,7 +215,7 @@ defmodule Sample do
        lease_id: lease_id
      }} =
       storage_context()
-      |> AzureStorageContext.container(container_name)
+      |> Container.new(container_name)
       |> ContainerLease.container_lease_acquire(
         lease_duration,
         "00000000-1111-2222-3333-444444444444"
@@ -235,7 +228,7 @@ defmodule Sample do
     break_period = 5
 
     storage_context()
-    |> AzureStorageContext.container(container_name)
+    |> Container.new(container_name)
     |> ContainerLease.container_lease_break(lease_id, break_period)
   end
 
@@ -243,7 +236,7 @@ defmodule Sample do
     lease_duration = 60
 
     storage_context()
-    |> AzureStorageContext.container(container_name)
+    |> Container.new(container_name)
     |> ContainerLease.container_lease_acquire(
       lease_duration,
       "00000000-1111-2222-3333-444444444444"
@@ -254,7 +247,7 @@ defmodule Sample do
     IO.puts("Change to new lease ID ")
 
     storage_context()
-    |> AzureStorageContext.container(container_name)
+    |> Container.new(container_name)
     |> ContainerLease.container_lease_change(
       "00000000-1111-2222-3333-444444444444",
       "00000000-1111-2222-3333-555555555555"

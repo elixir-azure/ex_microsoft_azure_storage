@@ -90,7 +90,7 @@ defmodule Microsoft.Azure.Storage.Serialization.BlobServiceProperties do
   end
 
   def xml_blob_service_properties(%{
-        default_service_version: default_service_version,
+        # default_service_version: default_service_version,
         logging: logging,
         hour_metrics: hour_metrics,
         minute_metrics: minute_metrics,

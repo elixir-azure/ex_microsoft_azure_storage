@@ -1,6 +1,6 @@
 defmodule Microsoft.Azure.Storage.ContainerLease do
   import Microsoft.Azure.Storage.RequestBuilder
-  alias Microsoft.Azure.Storage.AzureStorageContext.Container
+  alias Microsoft.Azure.Storage.Container
 
   # "x-ms-lease-action" acquire/renew/change/release/break
   # "x-ms-lease-id"     Required for renew/change/release

@@ -3,11 +3,14 @@ defmodule Microsoft.Azure.Storage.Blob do
   use NamedArgs
   # import SweetXml
   import Microsoft.Azure.Storage.RequestBuilder
+  alias Microsoft.Azure.Storage.{DateTimeUtils, Container}
 
-  alias Microsoft.Azure.Storage.{
-    DateTimeUtils,
-    AzureStorageContext.Container
-  }
+  @enforce_keys [:container, :blob_name]
+  defstruct [:container, :blob_name]
+
+  def new(container = %Container{}, blob_name)
+      when is_binary(blob_name),
+      do: %__MODULE__{container: container, blob_name: blob_name}
 
   @max_block_size_100MB 104_857_600
 
@@ -19,8 +22,10 @@ defmodule Microsoft.Azure.Storage.Blob do
   The `put_block` operation creates a new block to be committed as part of a blob.
   """
   def put_block(
-        %Container{storage_context: context, container_name: container_name},
-        blob_name,
+        %__MODULE__{
+          container: %Container{storage_context: context, container_name: container_name},
+          blob_name: blob_name
+        },
         block_id,
         content
       )
@@ -63,8 +68,10 @@ defmodule Microsoft.Azure.Storage.Blob do
   The `put_block_list` operation writes a blob by specifying the list of block IDs that make up the blob.
   """
   def put_block_list(
-        %Container{storage_context: context, container_name: container_name},
-        blob_name,
+        %__MODULE__{
+          container: %Container{storage_context: context, container_name: container_name},
+          blob_name: blob_name
+        },
         block_list
       )
       when is_list(block_list) do
@@ -136,8 +143,10 @@ defmodule Microsoft.Azure.Storage.Blob do
   end
 
   def get_block_list(
-        %Container{storage_context: context, container_name: container_name},
-        blob_name,
+        %__MODULE__{
+          container: %Container{storage_context: context, container_name: container_name},
+          blob_name: blob_name
+        },
         block_list_type \\ :all,
         snapshot \\ nil
       )
@@ -175,20 +184,18 @@ defmodule Microsoft.Azure.Storage.Blob do
     end
   end
 
-  def upload_file(
-        container = %Container{storage_context: context, container_name: container_name},
-        filename
-      ) do
+  def upload_file(container = %Container{}, filename) do
     mega_byte = 1024 * 1024
     block_size = 4 * mega_byte
     max_concurrency = 3
     blob_name = String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
+    blob = container |> __MODULE__.new(blob_name)
 
     %{size: size} = File.stat!(filename)
 
     existing_block_ids =
-      case context |> get_block_list(container_name, blob_name, :all) do
-        {:error, %{code: "BlobNotFound", http_status: 404}} ->
+      case blob |> get_block_list(:all) do
+        {:error, %{code: "BlobNotFound", status: 404}} ->
           %{}
 
         {:ok, %{uncommitted_blocks: uncommitted_blocks, committed_blocks: committed_blocks}} ->
@@ -226,9 +233,7 @@ defmodule Microsoft.Azure.Storage.Blob do
         if !(existing_block_ids |> Map.has_key?(block_id)) do
           IO.puts("Start to upload block #{i}")
 
-          {:ok, _} =
-            container
-            |> put_block(blob_name, block_id, content)
+          {:ok, _} = blob |> put_block(block_id, content)
 
           add_block.(block_id, content)
 
@@ -250,13 +255,15 @@ defmodule Microsoft.Azure.Storage.Blob do
       |> Enum.map(&to_block_id/1)
       |> Enum.filter(&(&1 in in_storage))
 
-    container
-    |> put_block_list(blob_name, block_ids)
+    blob
+    |> put_block_list(block_ids)
   end
 
   def delete_blob(
-        %Container{storage_context: context, container_name: container_name},
-        blob_name,
+        %__MODULE__{
+          container: %Container{storage_context: context, container_name: container_name},
+          blob_name: blob_name
+        },
         opts \\ []
       ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-blob
