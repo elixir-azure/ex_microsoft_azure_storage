@@ -1,6 +1,4 @@
 defmodule Microsoft.Azure.Storage.ApiVersion do
-  alias Microsoft.Azure.Storage.DateTimeUtils
-
   # "2015-04-05"
   # def get_api_version(:storage), do: "2016-05-31"
   def get_api_version(:storage), do: "2017-07-29"
@@ -17,8 +15,11 @@ defmodule Microsoft.Azure.Storage.ApiVersion do
       day: (d1 <> d0) |> String.to_integer()
     }
 
+  defp two_digits(i) when is_integer(i) and 1 <= i and i < 10, do: "0#{i}"
+  defp two_digits(i) when is_integer(i) and 10 <= i and i < 32, do: "#{i}"
+
   def to_string(%__MODULE__{year: year, month: month, day: day}),
-    do: "#{year}-#{month |> DateTimeUtils.two_digits()}-#{day |> DateTimeUtils.two_digits()}"
+    do: "#{year}-#{month |> two_digits()}-#{day |> two_digits()}"
 
   def to_date(%__MODULE__{year: year, month: month, day: day}) do
     with {:ok, result} <- Date.new(year, month, day, Calendar.ISO) do

@@ -5,12 +5,51 @@ defmodule Microsoft.Azure.Storage.Queue do
   import Microsoft.Azure.Storage.RequestBuilder
   alias Microsoft.Azure.Storage
   alias Microsoft.Azure.Storage.DateTimeUtils
+  alias __MODULE__.Responses
 
   @enforce_keys [:storage_context, :queue_name]
   defstruct [:storage_context, :queue_name]
 
   def new(storage_context = %Storage{}, queue_name) when is_binary(queue_name),
     do: %__MODULE__{storage_context: storage_context, queue_name: queue_name}
+
+  defmodule Responses do
+    alias Microsoft.Azure.Storage.DateTimeUtils
+
+    def put_message_response(),
+      do: [
+        message_id: ~x"/QueueMessagesList/QueueMessage/MessageId/text()"s,
+        pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
+        insertion_time:
+          ~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s
+          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+        expiration_time:
+          ~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s
+          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+        time_next_visible:
+          ~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s
+          |> transform_by(&DateTimeUtils.parse_rfc1123/1)
+      ]
+
+    def get_message_response(),
+      do: [
+        message_id: ~x"/QueueMessagesList/QueueMessage/MessageId/text()"s,
+        pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
+        insertion_time:
+          ~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s
+          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+        expiration_time:
+          ~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s
+          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+        time_next_visible:
+          ~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s
+          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+        dequeue_count: ~x"/QueueMessagesList/QueueMessage/DequeueCount/text()"s,
+        message_text:
+          ~x"/QueueMessagesList/QueueMessage/MessageText/text()"s
+          |> transform_by(&Base.decode64!/1)
+      ]
+  end
 
   def create_queue(%__MODULE__{storage_context: context, queue_name: queue_name}, opts \\ []) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/create-queue4
@@ -220,8 +259,6 @@ defmodule Microsoft.Azure.Storage.Queue do
       |> body(body)
       |> sign_and_call(:queue_service)
 
-    date_parse = &(&1 |> Timex.parse!("{RFC1123}"))
-
     case response do
       %{status: status} when 400 <= status and status < 500 ->
         response |> create_error_response()
@@ -229,18 +266,7 @@ defmodule Microsoft.Azure.Storage.Queue do
       %{status: 201} ->
         {:ok,
          response.body
-         |> xmap(
-           message_id: ~x"/QueueMessagesList/QueueMessage/MessageId/text()"s,
-           pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
-           insertion_time:
-             ~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s |> transform_by(date_parse),
-           expiration_time:
-             ~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s
-             |> transform_by(date_parse),
-           time_next_visible:
-             ~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s
-             |> transform_by(date_parse)
-         )
+         |> xmap(Responses.put_message_response())
          |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
          |> Map.put(:status, response.status)
@@ -283,8 +309,6 @@ defmodule Microsoft.Azure.Storage.Queue do
       |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
-    date_parse = &(&1 |> Timex.parse!("{RFC1123}"))
-
     case response do
       %{status: status} when 400 <= status and status < 500 ->
         response |> create_error_response()
@@ -292,22 +316,7 @@ defmodule Microsoft.Azure.Storage.Queue do
       %{status: 200} ->
         {:ok,
          response.body
-         |> xmap(
-           message_id: ~x"/QueueMessagesList/QueueMessage/MessageId/text()"s,
-           pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
-           insertion_time:
-             ~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s |> transform_by(date_parse),
-           expiration_time:
-             ~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s
-             |> transform_by(date_parse),
-           time_next_visible:
-             ~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s
-             |> transform_by(date_parse),
-           dequeue_count: ~x"/QueueMessagesList/QueueMessage/DequeueCount/text()"s,
-           message_text:
-             ~x"/QueueMessagesList/QueueMessage/MessageText/text()"s
-             |> transform_by(&Base.decode64!/1)
-         )
+         |> xmap(Responses.get_message_response())
          |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
          |> Map.put(:status, response.status)
