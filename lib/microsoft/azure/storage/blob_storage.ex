@@ -5,6 +5,116 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   alias Microsoft.Azure.Storage.{DateTimeUtils, BlobPolicy, AzureStorageContext}
   alias Microsoft.Azure.Storage.AzureStorageContext.Container, as: Container
 
+  defmodule Responses do
+    def to_bool("true"), do: true
+    def to_bool("false"), do: false
+    def to_bool(_), do: false
+
+    def list_containers_response(),
+      do: [
+        containers: [
+          ~x"/EnumerationResults/Containers/Container"l,
+          name: ~x"./Name/text()"s,
+          properties: [
+            ~x"./Properties",
+            lastModified: ~x"./Last-Modified/text()"s,
+            eTag: ~x"./Etag/text()"s,
+            leaseStatus: ~x"./LeaseStatus/text()"s,
+            leaseState: ~x"./LeaseState/text()"s
+          ]
+        ]
+      ]
+
+    def get_blob_service_stats_response(),
+      do: [
+        geo_replication: [
+          ~x"/StorageServiceStats/GeoReplication",
+          status: ~x"./Status/text()"s,
+          last_sync_time: ~x"./LastSyncTime/text()"s
+        ]
+      ]
+
+    def get_blob_service_properties_response(),
+      do: [
+        logging: [
+          ~x"/StorageServiceProperties/Logging",
+          version: ~x"./Version/text()"s,
+          delete: ~x"./Delete/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          read: ~x"./Read/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          write: ~x"./Write/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          retention_policy: [
+            ~x"./RetentionPolicy",
+            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            days: ~x"./Days/text()"I
+          ]
+        ],
+        hour_metrics: [
+          ~x"/StorageServiceProperties/HourMetrics",
+          version: ~x"./Version/text()"s,
+          enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          retention_policy: [
+            ~x"./RetentionPolicy",
+            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            days: ~x"./Days/text()"I
+          ]
+        ],
+        minute_metrics: [
+          ~x"/StorageServiceProperties/MinuteMetrics",
+          version: ~x"./Version/text()"s,
+          enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          retention_policy: [
+            ~x"./RetentionPolicy",
+            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            days: ~x"./Days/text()"I
+          ]
+        ],
+        cors_rules: [
+          ~x"/StorageServiceProperties/Cors/CorsRule"l,
+          max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
+          allowed_origins: ~x"./AllowedOrigins/text()"s |> transform_by(&(&1 |> String.split(","))),
+          allowed_methods: ~x"./AllowedMethods/text()"s |> transform_by(&(&1 |> String.split(","))),
+          exposed_headers: ~x"./ExposedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
+          allowed_headers: ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(",")))
+        ],
+        default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
+        delete_retention_policy: [
+          ~x"/StorageServiceProperties/DeleteRetentionPolicy",
+          enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          days: ~x"./Days/text()"I
+        ]
+      ]
+
+    def list_blobs_response(),
+      do: [
+        max_results: ~x"/EnumerationResults/MaxResults/text()"s,
+        next_marker: ~x"/EnumerationResults/NextMarker/text()"s,
+        blobs: [
+          ~x"/EnumerationResults/Blobs/Blob"l,
+          name: ~x"./Name/text()"s,
+          properties: [
+            ~x"./Properties",
+            etag: ~x"./Etag/text()"s,
+            last_modified: ~x"./Last-Modified/text()"s,
+            content_length: ~x"./Content-Length/text()"i,
+            content_type: ~x"./Content-Type/text()"s,
+            content_encoding: ~x"./Content-Encoding/text()"s,
+            content_language: ~x"./Content-Language/text()"s,
+            content_md5: ~x"./Content-MD5/text()"s,
+            content_disposition: ~x"./Content-Disposition/text()"s,
+            cache_control: ~x"./Cache-Control/text()"s,
+            blob_type: ~x"./BlobType/text()"s,
+            access_tier: ~x"./AccessTier/text()"s,
+            access_tier_inferred: ~x"./AccessTierInferred/text()"s,
+            lease_status: ~x"./LeaseStatus/text()"s,
+            lease_state: ~x"./LeaseState/text()"s,
+            server_encrypted: ~x"./ServerEncrypted/text()"s
+          ]
+        ]
+      ]
+  end
+
   def list_containers(context = %AzureStorageContext{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-containers2
     response =
@@ -22,29 +132,13 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       %{status: 200} ->
         {:ok,
          response.body
-         |> xmap(
-           containers: [
-             ~x"/EnumerationResults/Containers/Container"l,
-             name: ~x"./Name/text()"s,
-             properties: [
-               ~x"./Properties",
-               lastModified: ~x"./Last-Modified/text()"s,
-               eTag: ~x"./Etag/text()"s,
-               leaseStatus: ~x"./LeaseStatus/text()"s,
-               leaseState: ~x"./LeaseState/text()"s
-             ]
-           ]
-         )
+         |> xmap(__MODULE__.Responses.list_containers_response())
          |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
          |> Map.put(:status, response.status)
          |> Map.put(:request_id, response.headers["x-ms-request-id"])}
     end
   end
-
-  defp to_bool("true"), do: true
-  defp to_bool("false"), do: false
-  defp to_bool(_), do: false
 
   def get_blob_service_stats(context = %AzureStorageContext{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-stats
@@ -68,13 +162,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       %{status: 200} ->
         {:ok,
          response.body
-         |> xmap(
-           geo_replication: [
-             ~x"/StorageServiceStats/GeoReplication",
-             status: ~x"./Status/text()"s,
-             last_sync_time: ~x"./LastSyncTime/text()"s
-           ]
-         )
+         |> xmap(__MODULE__.Responses.get_blob_service_stats_response())
          |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
          |> Map.put(:status, response.status)
@@ -90,11 +178,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> url("/")
       |> add_param(:query, :restype, "service")
       |> add_param(:query, :comp, "properties")
-      |> add_ms_context(
-        context,
-        DateTimeUtils.utc_now(),
-        :storage
-      )
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -104,60 +188,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       %{status: 200} ->
         {:ok,
          response.body
-         |> xmap(
-           logging: [
-             ~x"/StorageServiceProperties/Logging",
-             version: ~x"./Version/text()"s,
-             delete: ~x"./Delete/text()"s |> transform_by(&to_bool/1),
-             read: ~x"./Read/text()"s |> transform_by(&to_bool/1),
-             write: ~x"./Write/text()"s |> transform_by(&to_bool/1),
-             retention_policy: [
-               ~x"./RetentionPolicy",
-               enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-               days: ~x"./Days/text()"I
-             ]
-           ],
-           hour_metrics: [
-             ~x"/StorageServiceProperties/HourMetrics",
-             version: ~x"./Version/text()"s,
-             enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-             include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
-             retention_policy: [
-               ~x"./RetentionPolicy",
-               enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-               days: ~x"./Days/text()"I
-             ]
-           ],
-           minute_metrics: [
-             ~x"/StorageServiceProperties/MinuteMetrics",
-             version: ~x"./Version/text()"s,
-             enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-             include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
-             retention_policy: [
-               ~x"./RetentionPolicy",
-               enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-               days: ~x"./Days/text()"I
-             ]
-           ],
-           cors_rules: [
-             ~x"/StorageServiceProperties/Cors/CorsRule"l,
-             max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
-             allowed_origins:
-               ~x"./AllowedOrigins/text()"s |> transform_by(&(&1 |> String.split(","))),
-             allowed_methods:
-               ~x"./AllowedMethods/text()"s |> transform_by(&(&1 |> String.split(","))),
-             exposed_headers:
-               ~x"./ExposedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
-             allowed_headers:
-               ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(",")))
-           ],
-           default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
-           delete_retention_policy: [
-             ~x"/StorageServiceProperties/DeleteRetentionPolicy",
-             enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-             days: ~x"./Days/text()"I
-           ]
-         )
+         |> xmap(__MODULE__.Responses.get_blob_service_properties_response())
          |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
          |> Map.put(:status, response.status)
@@ -432,7 +463,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-blobs
 
-
     response =
       new_azure_storage_request()
       |> method(:get)
@@ -455,32 +485,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       %{status: 200} ->
         {:ok,
          response.body
-         |> xmap(
-           max_results: ~x"/EnumerationResults/MaxResults/text()"s,
-           next_marker: ~x"/EnumerationResults/NextMarker/text()"s,
-           blobs: [
-             ~x"/EnumerationResults/Blobs/Blob"l,
-             name: ~x"./Name/text()"s,
-             properties: [
-               ~x"./Properties",
-               etag: ~x"./Etag/text()"s,
-               last_modified: ~x"./Last-Modified/text()"s,
-               content_length: ~x"./Content-Length/text()"i,
-               content_type: ~x"./Content-Type/text()"s,
-               content_encoding: ~x"./Content-Encoding/text()"s,
-               content_language: ~x"./Content-Language/text()"s,
-               content_md5: ~x"./Content-MD5/text()"s,
-               content_disposition: ~x"./Content-Disposition/text()"s,
-               cache_control: ~x"./Cache-Control/text()"s,
-               blob_type: ~x"./BlobType/text()"s,
-               access_tier: ~x"./AccessTier/text()"s,
-               access_tier_inferred: ~x"./AccessTierInferred/text()"s,
-               lease_status: ~x"./LeaseStatus/text()"s,
-               lease_state: ~x"./LeaseState/text()"s,
-               server_encrypted: ~x"./ServerEncrypted/text()"s
-             ]
-           ]
-         )
+         |> xmap(__MODULE__.Responses.list_blobs_response())
          |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
          |> Map.put(:status, response.status)
