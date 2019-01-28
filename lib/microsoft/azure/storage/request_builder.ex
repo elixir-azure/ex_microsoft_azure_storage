@@ -263,4 +263,23 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
      |> Map.put(:body, response.body)
      |> Map.put(:request_id, response.headers["x-ms-request-id"])}
   end
+
+  def add_if(map, response, header_str, key)
+      when is_map(map) and is_map(response) and is_binary(header_str) and is_atom(key) do
+    case(response.headers[header_str]) do
+      nil -> map
+      val -> map |> Map.put(key, val)
+    end
+  end
+
+  def create_success_response(response, map \\ %{}),
+    do:
+      map
+      |> Map.put(:status, response.status)
+      |> Map.put(:headers, response.headers)
+      |> Map.put(:url, response.url)
+      |> Map.put(:body, response.body)
+      |> add_if(response, "x-ms-request-id", :request_id)
+      |> add_if(response, "last-modified", :last_modified)
+      |> add_if(response, "etag", :etag)
 end

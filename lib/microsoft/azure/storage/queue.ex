@@ -51,26 +51,6 @@ defmodule Microsoft.Azure.Storage.Queue do
       ]
   end
 
-
-
-  def add_if(map, response, header_str, key) do
-    case response.headers[header_str] do
-      nil -> map
-      val -> map |> Map.put(key, val)
-    end
-  end
-
-  def parse_response(response) do
-    %{}
-    |> Map.put(:status, response.status)
-    |> Map.put(:headers, response.headers)
-    |> Map.put(:url, response.url)
-    |> Map.put(:body, response.body)
-    |> add_if(response, "x-ms-request-id", :request_id)
-    |> add_if(response, "last-modified", :last_modified)
-    |> add_if(response, "etag", :etag)
-  end
-
   def create_queue(%__MODULE__{storage_context: context, queue_name: queue_name}, opts \\ []) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/create-queue4
 
@@ -103,7 +83,7 @@ defmodule Microsoft.Azure.Storage.Queue do
         response |> create_error_response()
 
       %{status: status} when status == 201 or status == 204 ->
-        {:ok, response |> parse_response() }
+        {:ok, response |> create_success_response()}
     end
   end
 
@@ -129,7 +109,7 @@ defmodule Microsoft.Azure.Storage.Queue do
         response |> create_error_response()
 
       %{status: status} when status == 201 or status == 204 ->
-        {:ok, response |> parse_response() }
+        {:ok, response |> create_success_response()}
     end
   end
 
@@ -161,11 +141,13 @@ defmodule Microsoft.Azure.Storage.Queue do
 
       %{status: 200} ->
         {:ok,
-          response
-          |> parse_response()
-          |> Map.put(:approximate_message_count, response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0))
-          |> Map.put(:meta, response |> extract_x_ms_meta_headers())
-         }
+         response
+         |> create_success_response()
+         |> Map.put(
+           :approximate_message_count,
+           response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0)
+         )
+         |> Map.put(:meta, response |> extract_x_ms_meta_headers())}
     end
   end
 
@@ -206,14 +188,10 @@ defmodule Microsoft.Azure.Storage.Queue do
 
       %{status: status} when status == 201 or status == 204 ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"],
-           # approximate_message_count: response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0),
-           meta: response |> extract_x_ms_meta_headers()
-         }}
+         response
+         |> create_success_response()
+         # |> Map.put(:meta, response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0))
+         |> Map.put(:meta, response |> extract_x_ms_meta_headers())}
     end
   end
 

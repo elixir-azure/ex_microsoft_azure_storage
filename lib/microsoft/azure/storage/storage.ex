@@ -10,6 +10,9 @@ defmodule Microsoft.Azure.Storage do
     file_service: "file"
   }
 
+  @doc"""
+  Returns the storage context for the Azure storage emulator.
+  """
   def development_factory(),
     do: %__MODULE__{
       # https://docs.microsoft.com/en-us/azure/storage/common/storage-use-emulator#authenticating-requests-against-the-storage-emulator
