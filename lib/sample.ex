@@ -43,6 +43,7 @@ defmodule Sample do
       storage_context()
       |> BlobStorage.get_blob_service_properties()
       |> elem(1)
+      |> Map.get(:service_properties)
 
     storage_context()
     |> BlobStorage.set_blob_service_properties(props)

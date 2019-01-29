@@ -3,6 +3,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   alias Microsoft.Azure.Storage
   alias Microsoft.Azure.Storage.RestClient
   alias Microsoft.Azure.Storage.ApiVersion
+  alias Microsoft.Azure.Storage.DateTimeUtils
 
   def new_azure_storage_request, do: %{}
 
@@ -264,22 +265,26 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
      |> Map.put(:request_id, response.headers["x-ms-request-id"])}
   end
 
-  def add_if(map, response, header_str, key)
+  def identity(x), do: x
+
+  def add_if_header_exists_in_response(map, response, header_str, key, transformer \\ &__MODULE__.identity/1)
       when is_map(map) and is_map(response) and is_binary(header_str) and is_atom(key) do
     case(response.headers[header_str]) do
       nil -> map
-      val -> map |> Map.put(key, val)
+      val -> map |> Map.put(key, transformer.(val))
     end
   end
 
-  def create_success_response(response, map \\ %{}),
-    do:
+  def create_success_response(response, map \\ %{}) do
       map
       |> Map.put(:status, response.status)
       |> Map.put(:headers, response.headers)
-      |> Map.put(:url, response.url)
+      |> Map.put(:request_url, response.url)
       |> Map.put(:body, response.body)
-      |> add_if(response, "x-ms-request-id", :request_id)
-      |> add_if(response, "last-modified", :last_modified)
-      |> add_if(response, "etag", :etag)
+      |> add_if_header_exists_in_response(response, "x-ms-request-id", :request_id)
+      |> add_if_header_exists_in_response(response, "last-modified", :last_modified, &DateTimeUtils.parse_rfc1123/1)
+      |> add_if_header_exists_in_response(response, "date", :date, &DateTimeUtils.parse_rfc1123/1)
+      |> add_if_header_exists_in_response(response, "expires", :expires, &DateTimeUtils.parse_rfc1123/1)
+      |> add_if_header_exists_in_response(response, "etag", :etag)
+  end
 end
