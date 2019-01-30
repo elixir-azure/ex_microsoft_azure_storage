@@ -267,7 +267,13 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def identity(x), do: x
 
-  def add_if_header_exists_in_response(map, response, header_str, key, transformer \\ &__MODULE__.identity/1)
+  def add_if_header_exists_in_response(
+        map,
+        response,
+        header_str,
+        key,
+        transformer \\ &__MODULE__.identity/1
+      )
       when is_map(map) and is_map(response) and is_binary(header_str) and is_atom(key) do
     case(response.headers[header_str]) do
       nil -> map
@@ -276,15 +282,25 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   end
 
   def create_success_response(response, map \\ %{}) do
-      map
-      |> Map.put(:status, response.status)
-      |> Map.put(:headers, response.headers)
-      |> Map.put(:request_url, response.url)
-      |> Map.put(:body, response.body)
-      |> add_if_header_exists_in_response(response, "x-ms-request-id", :request_id)
-      |> add_if_header_exists_in_response(response, "last-modified", :last_modified, &DateTimeUtils.parse_rfc1123/1)
-      |> add_if_header_exists_in_response(response, "date", :date, &DateTimeUtils.parse_rfc1123/1)
-      |> add_if_header_exists_in_response(response, "expires", :expires, &DateTimeUtils.parse_rfc1123/1)
-      |> add_if_header_exists_in_response(response, "etag", :etag)
+    map
+    |> Map.put(:status, response.status)
+    |> Map.put(:headers, response.headers)
+    |> Map.put(:request_url, response.url)
+    |> Map.put(:body, response.body)
+    |> add_if_header_exists_in_response(response, "x-ms-request-id", :request_id)
+    |> add_if_header_exists_in_response(
+      response,
+      "last-modified",
+      :last_modified,
+      &DateTimeUtils.parse_rfc1123/1
+    )
+    |> add_if_header_exists_in_response(response, "date", :date, &DateTimeUtils.parse_rfc1123/1)
+    |> add_if_header_exists_in_response(
+      response,
+      "expires",
+      :expires,
+      &DateTimeUtils.parse_rfc1123/1
+    )
+    |> add_if_header_exists_in_response(response, "etag", :etag)
   end
 end

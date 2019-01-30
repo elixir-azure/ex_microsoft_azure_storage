@@ -81,11 +81,19 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
 
   defmodule ServiceProperties do
     import SweetXml
-    #import XmlBuilder
+    import XmlBuilder
 
     alias __MODULE__.{Logging, RetentionPolicy, Metrics, CorsRule}
 
-    defstruct [:logging, :hour_metrics, :minute_metrics, :cors_rules, :default_service_version, :delete_retention_policy]
+    defstruct [
+      :logging,
+      :hour_metrics,
+      :minute_metrics,
+      :cors_rules,
+      :default_service_version,
+      :delete_retention_policy
+    ]
+
     def to_struct(data) do
       struct(__MODULE__, data)
       |> Map.update!(:logging, &Logging.to_struct/1)
@@ -93,92 +101,214 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> Map.update!(:minute_metrics, &Metrics.to_struct/1)
       |> Map.update!(:delete_retention_policy, &RetentionPolicy.to_struct/1)
     end
+
     defmodule Logging do
       defstruct [:version, :delete, :read, :write, :retention_policy]
+
       def to_struct(data) do
         struct(__MODULE__, data)
         |> Map.update!(:retention_policy, &RetentionPolicy.to_struct/1)
       end
     end
+
+    def xml_logging(%{
+          version: version,
+          delete: delete,
+          read: read,
+          write: write,
+          retention_policy: retention_policy
+        }) do
+      element(
+        {:Logging,
+         [
+           element({:Version, version}),
+           element({:Delete, delete}),
+           element({:Read, read}),
+           element({:Write, write}),
+           xml_retention_policy(:RetentionPolicy, retention_policy)
+         ]}
+      )
+    end
+
     defmodule RetentionPolicy do
       defstruct [:enabled, :days]
       def to_struct(data), do: struct(__MODULE__, data)
     end
+
+    def xml_retention_policy(name, %{enabled: false}) when is_atom(name) do
+      element({name, [{:Enabled, false}]})
+    end
+
+    def xml_retention_policy(name, %{enabled: true, days: days})
+        when is_atom(name) and days > 0 and days <= 365 do
+      element({name, [{:Enabled, true}, {:Days, days}]})
+    end
+
     defmodule Metrics do
       defstruct [:version, :enabled, :include_apis, :retention_policy]
+
       def to_struct(data) do
         struct(__MODULE__, data)
         |> Map.update!(:retention_policy, &RetentionPolicy.to_struct/1)
       end
     end
+
+    def xml_metrics(
+          name,
+          %{
+            version: version,
+            enabled: true,
+            include_apis: include_apis,
+            retention_policy: retention_policy
+          }
+        ) do
+      element(
+        {name,
+         [
+           element({:Version, version}),
+           element({:Enabled, true}),
+           element({:IncludeAPIs, include_apis}),
+           xml_retention_policy(:RetentionPolicy, retention_policy)
+         ]}
+      )
+    end
+
+    def xml_metrics(
+          name,
+          %{
+            version: version,
+            enabled: false,
+            retention_policy: retention_policy
+          }
+        ) do
+      element(
+        {name,
+         [
+           element({:Version, version}),
+           element({:Enabled, false}),
+           xml_retention_policy(:RetentionPolicy, retention_policy)
+         ]}
+      )
+    end
+
     defmodule CorsRule do
-      defstruct [:max_age_in_seconds, :allowed_origins, :allowed_methods, :exposed_headers, :allowed_headers]
+      defstruct [
+        :max_age_in_seconds,
+        :allowed_origins,
+        :allowed_methods,
+        :exposed_headers,
+        :allowed_headers
+      ]
+
       def to_struct(data), do: struct(__MODULE__, data)
     end
 
-    def parse(xml), do:
-      xml
-      |> xmap(__MODULE__.storage_service_properties_parser())
-      |> Map.get(:storage_service_properties)
-      |> __MODULE__.to_struct()
+    defp xml_cors_rules(rules) when is_list(rules) do
+      element(:Cors, rules |> Enum.map(&xml_cors_rule/1))
+    end
 
-    def storage_service_properties_parser(), do: [
-      storage_service_properties: [
-        ~x"/StorageServiceProperties",
-        logging: [
-          ~x"./Logging",
-          version: ~x"./Version/text()"s,
-          delete: ~x"./Delete/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          read: ~x"./Read/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          write: ~x"./Write/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          retention_policy: [
-            ~x"./RetentionPolicy",
+    defp xml_cors_rule(%{
+           allowed_origins: allowed_origins,
+           allowed_methods: allowed_methods,
+           max_age_in_seconds: max_age_in_seconds,
+           exposed_headers: exposed_headers,
+           allowed_headers: allowed_headers
+         })
+         when is_integer(max_age_in_seconds) and is_list(allowed_origins) and
+                is_list(allowed_methods) and is_list(exposed_headers) and is_list(allowed_headers) do
+      element(:CorsRule, [
+        element(:MaxAgeInSeconds, max_age_in_seconds),
+        element(:AllowedOrigins, allowed_origins |> Enum.join(",")),
+        element(:AllowedMethods, allowed_methods |> Enum.join(",")),
+        element(:ExposedHeaders, exposed_headers |> Enum.join(",")),
+        element(:AllowedHeaders, allowed_headers |> Enum.join(","))
+      ])
+    end
+
+    def xml_blob_service_properties(%{
+          # default_service_version: default_service_version,
+          logging: logging,
+          hour_metrics: hour_metrics,
+          minute_metrics: minute_metrics,
+          cors_rules: cors_rules,
+          delete_retention_policy: delete_retention_policy
+        }) do
+      element({:StorageServiceProperties,
+       [
+         # element({:DefaultServiceVersion, default_service_version}),
+         xml_logging(logging),
+         xml_metrics(:HourMetrics, hour_metrics),
+         xml_metrics(:MinuteMetrics, minute_metrics),
+         xml_cors_rules(cors_rules),
+         xml_retention_policy(:DeleteRetentionPolicy, delete_retention_policy)
+       ]})
+    end
+
+    def parse(xml),
+      do:
+        xml
+        |> xmap(__MODULE__.storage_service_properties_parser())
+        |> Map.get(:storage_service_properties)
+        |> __MODULE__.to_struct()
+
+    def storage_service_properties_parser(),
+      do: [
+        storage_service_properties: [
+          ~x"/StorageServiceProperties",
+          logging: [
+            ~x"./Logging",
+            version: ~x"./Version/text()"s,
+            delete: ~x"./Delete/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            read: ~x"./Read/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            write: ~x"./Write/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            retention_policy: [
+              ~x"./RetentionPolicy",
+              enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+              days: ~x"./Days/text()"I
+            ]
+          ],
+          hour_metrics: [
+            ~x"./HourMetrics",
+            version: ~x"./Version/text()"s,
+            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            retention_policy: [
+              ~x"./RetentionPolicy",
+              enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+              days: ~x"./Days/text()"I
+            ]
+          ],
+          minute_metrics: [
+            ~x"./MinuteMetrics",
+            version: ~x"./Version/text()"s,
+            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            retention_policy: [
+              ~x"./RetentionPolicy",
+              enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+              days: ~x"./Days/text()"I
+            ]
+          ],
+          cors_rules: [
+            ~x"./Cors/CorsRule"l,
+            max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
+            allowed_origins:
+              ~x"./AllowedOrigins/text()"s |> transform_by(&(&1 |> String.split(","))),
+            allowed_methods:
+              ~x"./AllowedMethods/text()"s |> transform_by(&(&1 |> String.split(","))),
+            exposed_headers:
+              ~x"./ExposedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
+            allowed_headers:
+              ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(",")))
+          ],
+          default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
+          delete_retention_policy: [
+            ~x"./DeleteRetentionPolicy",
             enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
             days: ~x"./Days/text()"I
           ]
-        ],
-        hour_metrics: [
-          ~x"./HourMetrics",
-          version: ~x"./Version/text()"s,
-          enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          retention_policy: [
-            ~x"./RetentionPolicy",
-            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
-            days: ~x"./Days/text()"I
-          ]
-        ],
-        minute_metrics: [
-          ~x"./MinuteMetrics",
-          version: ~x"./Version/text()"s,
-          enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          retention_policy: [
-            ~x"./RetentionPolicy",
-            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
-            days: ~x"./Days/text()"I
-          ]
-        ],
-        cors_rules: [
-          ~x"./Cors/CorsRule"l,
-          max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
-          allowed_origins:
-            ~x"./AllowedOrigins/text()"s |> transform_by(&(&1 |> String.split(","))),
-          allowed_methods:
-            ~x"./AllowedMethods/text()"s |> transform_by(&(&1 |> String.split(","))),
-          exposed_headers:
-            ~x"./ExposedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
-          allowed_headers:
-            ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(",")))
-        ],
-        default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
-        delete_retention_policy: [
-          ~x"./DeleteRetentionPolicy",
-          enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          days: ~x"./Days/text()"I
         ]
       ]
-    ]
 
     def to_bool("true"), do: true
     def to_bool("false"), do: false
@@ -205,13 +335,14 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         response |> create_error_response()
 
       %{status: 200} ->
-        {:ok,
-         response.body
-         |> xmap(__MODULE__.Responses.get_blob_service_stats_response())
-        #  |> Map.put(:headers, response.headers)
-        #  |> Map.put(:url, response.url)
-        #  |> Map.put(:status, response.status)
-        #  |> Map.put(:request_id, response.headers["x-ms-request-id"])
+        {
+          :ok,
+          response.body
+          |> xmap(__MODULE__.Responses.get_blob_service_stats_response())
+          #  |> Map.put(:headers, response.headers)
+          #  |> Map.put(:url, response.url)
+          #  |> Map.put(:status, response.status)
+          #  |> Map.put(:request_id, response.headers["x-ms-request-id"])
         }
     end
   end
@@ -227,14 +358,13 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
-
     case response do
       %{status: status} when 400 <= status and status < 500 ->
         response |> create_error_response()
 
       %{status: 200} ->
         {:ok,
-         %{ }
+         %{}
          |> Map.put(:service_properties, ServiceProperties.parse(response.body))
          |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
@@ -254,7 +384,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> add_header("Content-Type", "application/xml")
       |> body(
         service_properties
-        |> Microsoft.Azure.Storage.Serialization.BlobServiceProperties.xml_blob_service_properties()
+        |> Microsoft.Azure.Storage.BlobStorage.ServiceProperties.xml_blob_service_properties()
         |> XmlBuilder.generate(format: :none)
       )
       |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
