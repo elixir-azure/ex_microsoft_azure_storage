@@ -82,6 +82,32 @@ defmodule Microsoft.Azure.Storage.Container do
     end
   end
 
+  def list_containers_aad(context = %Storage{}, token_producer) do
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/list-containers2
+    response =
+      new_azure_storage_request()
+      |> method(:get)
+      |> url("/")
+      |> add_param(:query, :comp, "list")
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
+      |> add_bearer_token(token_producer)
+      |> just_call(:blob_service)
+
+    case response do
+      %{status: status} when 400 <= status and status < 500 ->
+        response |> create_error_response()
+
+      %{status: 200} ->
+        {:ok,
+         response.body
+         |> xmap(__MODULE__.Responses.list_containers_response())
+         |> Map.put(:headers, response.headers)
+         |> Map.put(:url, response.url)
+         |> Map.put(:status, response.status)
+         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+    end
+  end
+
   def create_container(%__MODULE__{storage_context: context, container_name: container_name}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/create-container
     response =

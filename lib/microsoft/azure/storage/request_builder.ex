@@ -167,8 +167,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
           storage_context:
             storage_context = %Storage{is_development_factory: is_development_factory}
         }
-      )
-      when is_map(data) do
+      ) do
     canonicalizedHeaders = headers |> canonicalized_headers()
 
     url =
@@ -221,11 +220,22 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def add_signature(data = %{}), do: data |> add_missing(:query, []) |> add_signature()
 
-  def add_missing(map, key, value) do
-    case map do
-      %{^key => _} -> map
-      %{} -> map |> Map.put(key, value)
-    end
+  def add_bearer_token(data = %{}, token_producer) when is_function(token_producer, 0) do
+    data
+    |> add_header("Authorization", "Bearer #{token_producer.()}")
+  end
+
+  def just_call(request = %{storage_context: storage_context}, service)
+      when is_atom(service) do
+    connection =
+      storage_context
+      |> Storage.endpoint_url(service)
+      |> Microsoft.Azure.Storage.RestClient.new()
+
+    request
+    |> remove_empty_headers()
+    |> Enum.into([])
+    |> (&Microsoft.Azure.Storage.RestClient.request(connection, &1)).()
   end
 
   def sign_and_call(request = %{storage_context: storage_context}, service)
@@ -240,6 +250,13 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> add_signature()
     |> Enum.into([])
     |> (&RestClient.request(connection, &1)).()
+  end
+
+  def add_missing(map, key, value) do
+    case map do
+      %{^key => _} -> map
+      %{} -> map |> Map.put(key, value)
+    end
   end
 
   def decode(%Tesla.Env{status: 200, body: body}), do: Poison.decode(body)
