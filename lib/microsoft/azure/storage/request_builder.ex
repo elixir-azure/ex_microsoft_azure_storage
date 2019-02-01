@@ -156,18 +156,22 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> Map.get(name)
   end
 
-  def add_signature(
-        # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
+  defp protect(
+         # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
 
-        data = %{
-          method: method,
-          url: url,
-          query: query,
-          headers: headers = %{},
-          storage_context:
-            storage_context = %Storage{is_development_factory: is_development_factory}
-        }
-      ) do
+         data = %{
+           method: method,
+           url: url,
+           query: query,
+           headers: headers = %{},
+           storage_context:
+             storage_context = %Storage{
+               is_development_factory: is_development_factory,
+               account_key: account_key
+             }
+         }
+       )
+       when is_binary(account_key) and account_key != nil do
     canonicalizedHeaders = headers |> canonicalized_headers()
 
     url =
@@ -218,41 +222,34 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     )
   end
 
-  def add_signature(data = %{}), do: data |> add_missing(:query, []) |> add_signature()
-
-  def sign_and_call(
-        request = %{
-          storage_context: storage_context = %Storage{aad_token_provider: aad_token_provider}
-        },
-        service
-      )
-      when is_atom(service) and is_function(aad_token_provider, 1) and aad_token_provider != nil do
-    connection =
-      storage_context
-      |> Storage.endpoint_url(service)
-      |> RestClient.new()
-
+  defp protect(
+         request = %{
+           storage_context: %Storage{account_key: nil, aad_token_provider: aad_token_provider},
+           uri: uri
+         }
+       ) do
     request
-    |> remove_empty_headers()
-    |> add_header("Authorization", "Bearer #{aad_token_provider.(:bumm)}")
-    |> Enum.into([])
-    |> Enum.into([])
-    |> (&RestClient.request(connection, &1)).()
+    |> add_header("Authorization", "Bearer #{aad_token_provider.(uri)}")
   end
 
   def sign_and_call(
-        request = %{storage_context: storage_context = %Storage{account_key: account_key}},
+        request = %{storage_context: storage_context = %Storage{}},
         service
       )
-      when is_atom(service) and is_binary(account_key) and account_key != nil do
-    connection =
+      when is_atom(service) do
+    uri =
       storage_context
       |> Storage.endpoint_url(service)
+
+    connection =
+      uri
       |> RestClient.new()
 
     request
     |> remove_empty_headers()
-    |> add_signature()
+    |> add_missing(:query, [])
+    |> Map.put(:uri, uri)
+    |> protect()
     |> Enum.into([])
     |> (&RestClient.request(connection, &1)).()
   end
