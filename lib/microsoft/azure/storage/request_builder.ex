@@ -226,10 +226,18 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
          request = %{
            storage_context: %Storage{account_key: nil, aad_token_provider: aad_token_provider},
            uri: uri
-         }
-       ) do
+         }) do
+    audience = uri |> trim_uri_for_aad_request()
+
     request
-    |> add_header("Authorization", "Bearer #{aad_token_provider.(uri)}")
+    |> add_header("Authorization", "Bearer #{aad_token_provider.(audience)}")
+  end
+
+  defp trim_uri_for_aad_request(uri) when is_binary(uri) do
+    %URI{ host: host, scheme: scheme} = uri |> URI.parse()
+
+    %URI{ host: host, scheme: scheme}
+    |> URI.to_string()
   end
 
   def sign_and_call(
