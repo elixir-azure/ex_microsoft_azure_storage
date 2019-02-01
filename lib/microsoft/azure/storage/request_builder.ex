@@ -220,26 +220,31 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def add_signature(data = %{}), do: data |> add_missing(:query, []) |> add_signature()
 
-  def add_bearer_token(data = %{}, token_producer) when is_function(token_producer, 0) do
-    data
-    |> add_header("Authorization", "Bearer #{token_producer.()}")
-  end
-
-  def just_call(request = %{storage_context: storage_context}, service)
-      when is_atom(service) do
+  def sign_and_call(
+        request = %{
+          storage_context: storage_context = %Storage{aad_token_provider: aad_token_provider}
+        },
+        service
+      )
+      when is_atom(service) and is_function(aad_token_provider, 1) and aad_token_provider != nil do
     connection =
       storage_context
       |> Storage.endpoint_url(service)
-      |> Microsoft.Azure.Storage.RestClient.new()
+      |> RestClient.new()
 
     request
     |> remove_empty_headers()
+    |> add_header("Authorization", "Bearer #{aad_token_provider.(:bumm)}")
     |> Enum.into([])
-    |> (&Microsoft.Azure.Storage.RestClient.request(connection, &1)).()
+    |> Enum.into([])
+    |> (&RestClient.request(connection, &1)).()
   end
 
-  def sign_and_call(request = %{storage_context: storage_context}, service)
-      when is_atom(service) do
+  def sign_and_call(
+        request = %{storage_context: storage_context = %Storage{account_key: account_key}},
+        service
+      )
+      when is_atom(service) and is_binary(account_key) and account_key != nil do
     connection =
       storage_context
       |> Storage.endpoint_url(service)

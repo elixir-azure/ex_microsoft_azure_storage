@@ -1,7 +1,13 @@
 defmodule Microsoft.Azure.Storage do
   @derive {Inspect, except: [:account_key]}
   @enforce_keys []
-  defstruct [:account_name, :account_key, :cloud_environment_suffix, :is_development_factory]
+  defstruct [
+    :account_name,
+    :account_key,
+    :aad_token_provider,
+    :cloud_environment_suffix,
+    :is_development_factory
+  ]
 
   @endpoint_names %{
     blob_service: "blob",
