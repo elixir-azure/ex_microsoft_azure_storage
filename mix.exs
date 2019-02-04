@@ -23,7 +23,8 @@ defmodule ExMicrosoftAzureStorage.MixProject do
     [
       {:ibrowse, "~> 4.4"},
       {:tesla, "~> 0.8"},
-      {:poison, ">= 1.0.0"},
+      {:poison, ">= 1.0.0", optional: true},
+      {:jason, "~> 1.1", optional: true},
       {:sweet_xml, "~> 0.6.5"},
       {:xml_builder, "~> 2.1"},
       {:named_args, "~> 0.1.1"},

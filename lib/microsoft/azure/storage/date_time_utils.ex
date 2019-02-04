@@ -14,8 +14,8 @@ defmodule Microsoft.Azure.Storage.DateTimeUtils do
       |> Timex.parse!("{RFC1123}")
 
   def to_string(timex_time),
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/representation-of-date-time-values-in-headers
     do:
-      # https://docs.microsoft.com/en-us/rest/api/storageservices/representation-of-date-time-values-in-headers
       timex_time
       |> Timex.format!("{WDshort}, {0D} {Mshort} {YYYY} {0h24}:{0m}:{0s} GMT")
 end
