@@ -5,6 +5,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   alias Microsoft.Azure.Storage.ApiVersion
   alias Microsoft.Azure.Storage.DateTimeUtils
 
+  @json_library Application.get_env(:ex_microsoft_azure_storage, :json_library, Jason)
+
   def new_azure_storage_request, do: %{}
 
   def method(request, m), do: request |> Map.put_new(:method, m)
@@ -77,7 +79,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       &Tesla.Multipart.add_field(
         &1,
         key,
-        Poison.encode!(value),
+        @json_library.encode!(value),
         headers: [{:"Content-Type", "application/json"}]
       )
     )
@@ -269,10 +271,10 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     end
   end
 
-  def decode(%Tesla.Env{status: 200, body: body}), do: Poison.decode(body)
+  def decode(%Tesla.Env{status: 200, body: body}), do: @json_library.decode(body)
   def decode(response), do: {:error, response}
   def decode(%Tesla.Env{status: 200} = env, false), do: {:ok, env}
-  def decode(%Tesla.Env{status: 200, body: body}, struct), do: Poison.decode(body, as: struct)
+  def decode(%Tesla.Env{status: 200, body: body}, struct), do: @json_library.decode(body, as: struct)
   def decode(response, _struct), do: {:error, response}
 
   def create_error_response(response = %{}) do
