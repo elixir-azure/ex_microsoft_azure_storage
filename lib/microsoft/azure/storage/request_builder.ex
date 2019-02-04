@@ -313,21 +313,15 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> Map.put(:status, response.status)
     |> Map.put(:headers, response.headers)
     |> Map.put(:request_url, response.url)
-    |> Map.put(:body, response.body)
-    |> add_if_header_exists_in_response(response, "x-ms-request-id", :request_id)
-    |> add_if_header_exists_in_response(
-      response,
-      "last-modified",
-      :last_modified,
-      &DateTimeUtils.parse_rfc1123/1
-    )
+    |> add_if_header_exists_in_response(response, "last-modified", :last_modified, &DateTimeUtils.parse_rfc1123/1)
     |> add_if_header_exists_in_response(response, "date", :date, &DateTimeUtils.parse_rfc1123/1)
-    |> add_if_header_exists_in_response(
-      response,
-      "expires",
-      :expires,
-      &DateTimeUtils.parse_rfc1123/1
-    )
+    |> add_if_header_exists_in_response(response, "x-ms-request-id", :request_id)
+    |> add_if_header_exists_in_response(response, "expires", :expires, &DateTimeUtils.parse_rfc1123/1)
     |> add_if_header_exists_in_response(response, "etag", :etag)
+    |> Map.put(:body, response.body)
   end
+
+  def to_bool("true"), do: true
+  def to_bool("false"), do: false
+  def to_bool(_), do: false
 end

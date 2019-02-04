@@ -9,9 +9,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   alias __MODULE__.ServiceProperties
 
   defmodule Responses do
-    def to_bool("true"), do: true
-    def to_bool("false"), do: false
-    def to_bool(_), do: false
+    import Microsoft.Azure.Storage.RequestBuilder
 
     def get_blob_service_stats_response(),
       do: [
@@ -27,34 +25,34 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         logging: [
           ~x"/StorageServiceProperties/Logging",
           version: ~x"./Version/text()"s,
-          delete: ~x"./Delete/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          read: ~x"./Read/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          write: ~x"./Write/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          delete: ~x"./Delete/text()"s |> transform_by(&to_bool/1),
+          read: ~x"./Read/text()"s |> transform_by(&to_bool/1),
+          write: ~x"./Write/text()"s |> transform_by(&to_bool/1),
           retention_policy: [
             ~x"./RetentionPolicy",
-            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
             days: ~x"./Days/text()"I
           ]
         ],
         hour_metrics: [
           ~x"/StorageServiceProperties/HourMetrics",
           version: ~x"./Version/text()"s,
-          enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
           retention_policy: [
             ~x"./RetentionPolicy",
-            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
             days: ~x"./Days/text()"I
           ]
         ],
         minute_metrics: [
           ~x"/StorageServiceProperties/MinuteMetrics",
           version: ~x"./Version/text()"s,
-          enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
-          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
           retention_policy: [
             ~x"./RetentionPolicy",
-            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
             days: ~x"./Days/text()"I
           ]
         ],
@@ -73,7 +71,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
         delete_retention_policy: [
           ~x"/StorageServiceProperties/DeleteRetentionPolicy",
-          enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+          enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
           days: ~x"./Days/text()"I
         ]
       ]
@@ -82,6 +80,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   defmodule ServiceProperties do
     import SweetXml
     import XmlBuilder
+    import Microsoft.Azure.Storage.RequestBuilder
 
     alias __MODULE__.{Logging, RetentionPolicy, Metrics, CorsRule}
 
@@ -258,34 +257,34 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
           logging: [
             ~x"./Logging",
             version: ~x"./Version/text()"s,
-            delete: ~x"./Delete/text()"s |> transform_by(&__MODULE__.to_bool/1),
-            read: ~x"./Read/text()"s |> transform_by(&__MODULE__.to_bool/1),
-            write: ~x"./Write/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            delete: ~x"./Delete/text()"s |> transform_by(&to_bool/1),
+            read: ~x"./Read/text()"s |> transform_by(&to_bool/1),
+            write: ~x"./Write/text()"s |> transform_by(&to_bool/1),
             retention_policy: [
               ~x"./RetentionPolicy",
-              enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
               days: ~x"./Days/text()"I
             ]
           ],
           hour_metrics: [
             ~x"./HourMetrics",
             version: ~x"./Version/text()"s,
-            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
-            include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+            include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
             retention_policy: [
               ~x"./RetentionPolicy",
-              enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
               days: ~x"./Days/text()"I
             ]
           ],
           minute_metrics: [
             ~x"./MinuteMetrics",
             version: ~x"./Version/text()"s,
-            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
-            include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+            include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
             retention_policy: [
               ~x"./RetentionPolicy",
-              enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
               days: ~x"./Days/text()"I
             ]
           ],
@@ -304,15 +303,11 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
           default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
           delete_retention_policy: [
             ~x"./DeleteRetentionPolicy",
-            enabled: ~x"./Enabled/text()"s |> transform_by(&__MODULE__.to_bool/1),
+            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
             days: ~x"./Days/text()"I
           ]
         ]
       ]
-
-    def to_bool("true"), do: true
-    def to_bool("false"), do: false
-    def to_bool(_), do: false
   end
 
   def get_blob_service_stats(context = %Storage{}) do
