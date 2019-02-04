@@ -42,11 +42,12 @@ defmodule Microsoft.Azure.Storage do
         :table_service -> 10002
       end
 
-      %URI{ scheme: "http", host: "127.0.0.1", path: context.account_name } |> URI.to_string()
+    %URI{scheme: "http", host: "127.0.0.1", port: port, path: context.account_name}
+    |> URI.to_string()
   end
 
   def endpoint_url(context = %__MODULE__{}, service) when is_atom(service),
-    do: %URI{ scheme: "https", host: endpoint_hostname(context, service) } |> URI.to_string()
+    do: %URI{scheme: "https", host: endpoint_hostname(context, service)} |> URI.to_string()
 
   def endpoint_hostname(context = %__MODULE__{}, service) when is_atom(service),
     do: "#{context.account_name}.#{@endpoint_names[service]}.#{context.cloud_environment_suffix}"

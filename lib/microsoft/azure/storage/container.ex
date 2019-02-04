@@ -20,12 +20,14 @@ defmodule Microsoft.Azure.Storage.Container do
           name: ~x"./Name/text()"s,
           properties: [
             ~x"./Properties",
-            lastModified: ~x"./Last-Modified/text()"s
-            |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+            lastModified:
+              ~x"./Last-Modified/text()"s
+              |> transform_by(&DateTimeUtils.parse_rfc1123/1),
             eTag: ~x"./Etag/text()"s,
             leaseStatus: ~x"./LeaseStatus/text()"s,
             leaseState: ~x"./LeaseState/text()"s,
-            hasImmutabilityPolicy: ~x"./HasImmutabilityPolicy/text()"s |> transform_by(&to_bool/1),
+            hasImmutabilityPolicy:
+              ~x"./HasImmutabilityPolicy/text()"s |> transform_by(&to_bool/1),
             hasLegalHold: ~x"./HasLegalHold/text()"s |> transform_by(&to_bool/1)
           ]
         ]
@@ -41,7 +43,8 @@ defmodule Microsoft.Azure.Storage.Container do
           properties: [
             ~x"./Properties",
             etag: ~x"./Etag/text()"s,
-            last_modified: ~x"./Last-Modified/text()"s |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+            last_modified:
+              ~x"./Last-Modified/text()"s |> transform_by(&DateTimeUtils.parse_rfc1123/1),
             content_length: ~x"./Content-Length/text()"i,
             content_type: ~x"./Content-Type/text()"s,
             content_encoding: ~x"./Content-Encoding/text()"s,
@@ -131,14 +134,17 @@ defmodule Microsoft.Azure.Storage.Container do
         response |> create_error_response()
 
       %{status: 200} ->
-        {:ok, response
-        |> create_success_response()
-        |> Map.put(:etag, response.headers["etag"])
-        |> Map.put(:lease_state, response.headers["x-ms-lease-state"])
-        |> Map.put(:lease_status, response.headers["x-ms-lease-status"])
-        |> Map.put(:hasImmutabilityPolicy, response.headers["x-ms-has-immutability-policy"] |> to_bool())
-        |> Map.put(:hasLegalHold, response.headers["x-ms-has-legal-hold"] |> to_bool())
-        }
+        {:ok,
+         response
+         |> create_success_response()
+         |> Map.put(:etag, response.headers["etag"])
+         |> Map.put(:lease_state, response.headers["x-ms-lease-state"])
+         |> Map.put(:lease_status, response.headers["x-ms-lease-status"])
+         |> Map.put(
+           :hasImmutabilityPolicy,
+           response.headers["x-ms-has-immutability-policy"] |> to_bool()
+         )
+         |> Map.put(:hasLegalHold, response.headers["x-ms-has-legal-hold"] |> to_bool())}
     end
   end
 
@@ -191,12 +197,11 @@ defmodule Microsoft.Azure.Storage.Container do
 
       %{status: 200} ->
         {:ok,
-        response
-        |> create_success_response()
-        |> Map.put(:etag, response.headers["etag"])
-        |> Map.put(:blob_public_access, response.headers["x-ms-blob-public-access"])
-        |> Map.put(:policies, response.body |> process_body([], &BlobPolicy.deserialize/1))
-        }
+         response
+         |> create_success_response()
+         |> Map.put(:etag, response.headers["etag"])
+         |> Map.put(:blob_public_access, response.headers["x-ms-blob-public-access"])
+         |> Map.put(:policies, response.body |> process_body([], &BlobPolicy.deserialize/1))}
     end
   end
 
@@ -236,11 +241,11 @@ defmodule Microsoft.Azure.Storage.Container do
       %{status: status} when 400 <= status and status < 500 ->
         response |> create_error_response()
 
-      %{status: 200} -
-        {:ok, response
-          |> create_success_response()
-          |> Map.put(:etag, response.headers["etag"])
-        }
+        %{status: 200} -
+          {:ok,
+           response
+           |> create_success_response()
+           |> Map.put(:etag, response.headers["etag"])}
     end
   end
 
@@ -267,10 +272,10 @@ defmodule Microsoft.Azure.Storage.Container do
         response |> create_error_response()
 
       %{status: 200} ->
-        {:ok, response
-          |> create_success_response()
-          |> Map.put(:etag, response.headers["etag"])
-        }
+        {:ok,
+         response
+         |> create_success_response()
+         |> Map.put(:etag, response.headers["etag"])}
     end
   end
 
@@ -289,10 +294,10 @@ defmodule Microsoft.Azure.Storage.Container do
         response |> create_error_response()
 
       %{status: 202} ->
-        {:ok, response
-          |> create_success_response()
-          |> Map.put(:etag, response.headers["etag"])
-        }
+        {:ok,
+         response
+         |> create_success_response()
+         |> Map.put(:etag, response.headers["etag"])}
     end
   end
 

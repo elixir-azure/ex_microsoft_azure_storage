@@ -228,7 +228,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
          request = %{
            storage_context: %Storage{account_key: nil, aad_token_provider: aad_token_provider},
            uri: uri
-         }) do
+         }
+       ) do
     audience = uri |> trim_uri_for_aad_request()
 
     request
@@ -236,9 +237,9 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   end
 
   defp trim_uri_for_aad_request(uri) when is_binary(uri) do
-    %URI{ host: host, scheme: scheme} = uri |> URI.parse()
+    %URI{host: host, scheme: scheme} = uri |> URI.parse()
 
-    %URI{ host: host, scheme: scheme}
+    %URI{host: host, scheme: scheme}
     |> URI.to_string()
   end
 
@@ -274,7 +275,10 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   def decode(%Tesla.Env{status: 200, body: body}), do: @json_library.decode(body)
   def decode(response), do: {:error, response}
   def decode(%Tesla.Env{status: 200} = env, false), do: {:ok, env}
-  def decode(%Tesla.Env{status: 200, body: body}, struct), do: @json_library.decode(body, as: struct)
+
+  def decode(%Tesla.Env{status: 200, body: body}, struct),
+    do: @json_library.decode(body, as: struct)
+
   def decode(response, _struct), do: {:error, response}
 
   def create_error_response(response = %{}) do
@@ -315,10 +319,20 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> Map.put(:status, response.status)
     |> Map.put(:headers, response.headers)
     |> Map.put(:request_url, response.url)
-    |> add_if_header_exists_in_response(response, "last-modified", :last_modified, &DateTimeUtils.parse_rfc1123/1)
+    |> add_if_header_exists_in_response(
+      response,
+      "last-modified",
+      :last_modified,
+      &DateTimeUtils.parse_rfc1123/1
+    )
     |> add_if_header_exists_in_response(response, "date", :date, &DateTimeUtils.parse_rfc1123/1)
     |> add_if_header_exists_in_response(response, "x-ms-request-id", :request_id)
-    |> add_if_header_exists_in_response(response, "expires", :expires, &DateTimeUtils.parse_rfc1123/1)
+    |> add_if_header_exists_in_response(
+      response,
+      "expires",
+      :expires,
+      &DateTimeUtils.parse_rfc1123/1
+    )
     |> add_if_header_exists_in_response(response, "etag", :etag)
     |> Map.put(:body, response.body)
   end
