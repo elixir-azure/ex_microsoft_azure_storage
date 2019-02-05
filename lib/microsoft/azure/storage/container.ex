@@ -185,6 +185,14 @@ defmodule Microsoft.Azure.Storage.Container do
   def set_container_acl_public_access_container(container = %__MODULE__{}),
     do: container |> set_container_acl(:container)
 
+  defp container_access_level_to_string(:off), do: nil
+  defp container_access_level_to_string(:blob), do: "blob"
+  defp container_access_level_to_string(:container), do: "container"
+
+  def parse_access_level(nil), do: :off
+  def parse_access_level("blob"), do: :blob
+  def parse_access_level("container"), do: :container
+
   def set_container_acl(
         %__MODULE__{storage_context: context, container_name: container_name},
         access_level
@@ -199,13 +207,11 @@ defmodule Microsoft.Azure.Storage.Container do
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
       |> add_param(:query, :comp, "acl")
-      |> (fn r ->
-            case access_level do
-              :off -> r
-              :blob -> r |> add_header("x-ms-blob-public-access", "blob")
-              :container -> r |> add_header("x-ms-blob-public-access", "container")
-            end
-          end).()
+      |> add_header_if(
+        container_access_level_to_string(access_level) != nil,
+        "x-ms-blob-public-access",
+        container_access_level_to_string(access_level)
+      )
       |> sign_and_call(:blob_service)
 
     case response do

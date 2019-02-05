@@ -52,10 +52,10 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
     <SignedIdentifier>
       <Id><%= policy.id %></Id>
       <AccessPolicy>
-        <Start><%= policy.start |> Microsoft.Azure.Storage.BlobPolicy.time_serialize() %></Start>
-        <Expiry><%= policy.expiry |> Microsoft.Azure.Storage.BlobPolicy.time_serialize() %></Expiry>
+        <Start><%= policy.start |> Microsoft.Azure.Storage.DateTimeUtils.to_string_iso8601() %></Start>
+        <Expiry><%= policy.expiry |> Microsoft.Azure.Storage.DateTimeUtils.to_string_iso8601() %></Expiry>
         <Permission><%= policy.permission |> Microsoft.Azure.Storage.BlobPolicy.permission_serialize() %></Permission>
-      </AccessPolicy>
+      </AccessPolicy>Date
     </SignedIdentifier>
     <% end %>
   </SignedIdentifiers>
@@ -82,17 +82,8 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
   #     "<SignedIdentifier>" <>
   #       "<Id>#{policy.id}</Id>" <>
   #       "<AccessPolicy>" <>
-  #       "<Start>#{policy.start |> time_serialize()}</Start>" <>
-  #       "<Expiry>#{policy.expiry |> time_serialize()}</Expiry>" <>
+  #       "<Start>#{policy.start |> DateTimeUtils.to_string_iso8601()}</Start>" <>
+  #       "<Expiry>#{policy.expiry |> DateTimeUtils.to_string_iso8601()}</Expiry>" <>
   #       "<Permission>#{policy.permission |> permission_serialize()}</Permission>" <>
   #       "</AccessPolicy>" <> "</SignedIdentifier>"
-
-  # Azure expects dates in YYYY-MM-DDThh:mm:ss.fffffffTZD,
-  # where fffffff is the *seven*-digit millisecond representation.
-  # &DateTime.to_iso8601/1 only generates six-digit millisecond
-  def time_serialize(date_time),
-    do:
-      date_time
-      |> DateTime.to_iso8601()
-      |> String.replace_trailing("Z", "0Z")
 end

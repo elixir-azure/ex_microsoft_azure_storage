@@ -14,6 +14,15 @@ defmodule Microsoft.Azure.Storage.DateTimeUtils do
     result
   end
 
+  # Azure expects dates in YYYY-MM-DDThh:mm:ss.fffffffTZD,
+  # where fffffff is the *seven*-digit millisecond representation.
+  # &DateTime.to_iso8601/1 only generates six-digit millisecond
+  def to_string_iso8601(date_time),
+    do:
+      date_time
+      |> DateTime.to_iso8601()
+      |> String.replace_trailing("Z", "0Z")
+
   # "Tue, 05 Feb 2019 16:58:12 GMT" |> Microsoft.Azure.Storage.DateTimeUtils.date_parse_rfc1123()
   def date_parse_rfc1123(str),
     do:

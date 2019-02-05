@@ -1,9 +1,7 @@
 defmodule Microsoft.Azure.Storage.RequestBuilder do
   import SweetXml
   alias Microsoft.Azure.Storage
-  alias Microsoft.Azure.Storage.RestClient
-  alias Microsoft.Azure.Storage.ApiVersion
-  alias Microsoft.Azure.Storage.DateTimeUtils
+  alias Microsoft.Azure.Storage.{RestClient, ApiVersion, DateTimeUtils, Container}
 
   def new_azure_storage_request(storage = %Storage{}), do: %{storage_context: storage}
 
@@ -212,10 +210,13 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
            uri: uri
          }
        ) do
-    audience = uri |> trim_uri_for_aad_request()
+    token =
+      uri
+      |> trim_uri_for_aad_request()
+      |> aad_token_provider.()
 
     request
-    |> add_header("Authorization", "Bearer #{aad_token_provider.(audience)}")
+    |> add_header("Authorization", "Bearer #{token}")
   end
 
   defp trim_uri_for_aad_request(uri) when is_binary(uri) do
@@ -229,7 +230,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
         request = %{storage_context: storage_context = %Storage{}},
         service
       )
-      when is_atom(service) do
+      when is_atom(service) and service in [:blob_service, :queue_service, :table_service] do
     uri =
       storage_context
       |> Storage.endpoint_url(service)
@@ -273,12 +274,6 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       ]
   end
 
-  def create_error_response(response = %{}) do
-    response
-    |> create_success_response(xml_body_parser: &__MODULE__.Responses.error_response/0)
-    |> Map.update!(:error_message, &String.split(&1, "\n"))
-  end
-
   def identity(x), do: x
   def to_bool("true"), do: true
   def to_bool("false"), do: false
@@ -287,6 +282,32 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   def to_integer!(x) do
     {i, ""} = x |> Integer.parse()
     i
+  end
+
+  def create_error_response(response = %{}) do
+    response
+    |> create_success_response(xml_body_parser: &__MODULE__.Responses.error_response/0)
+    |> Map.update!(:error_message, &String.split(&1, "\n"))
+  end
+
+  def create_success_response(response, opts \\ []) do
+    Map.new()
+    |> Map.put(:request_url, response.url)
+    |> Map.put(:status, response.status)
+    |> Map.put(:headers, response.headers)
+    |> Map.put(:body, response.body)
+    |> copy_response_headers_into_map()
+    |> copy_x_ms_meta_headers_into_map()
+    |> (fn response = %{body: body} ->
+          case opts |> Keyword.get(:xml_body_parser) do
+            nil ->
+              response
+
+            xml_parser when is_function(xml_parser) ->
+              response
+              |> Map.merge(body |> xmap(xml_parser.()))
+          end
+        end).()
   end
 
   @response_headers [
@@ -305,41 +326,20 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     {"x-ms-has-legal-hold", :x_ms_has_legal_hold, &__MODULE__.to_bool/1},
     {"x-ms-approximate-messages-count", :x_ms_approximate_messages_count,
      &__MODULE__.to_integer!/1},
-    {"x-ms-error-code", :x_ms_error_code}
+    {"x-ms-error-code", :x_ms_error_code},
+    {"x-ms-blob-public-access", :x_ms_blob_public_access, &Container.parse_access_level/1}
   ]
 
-  def create_success_response(response, opts \\ []) do
-    Map.new()
-    |> Map.put(:request_url, response.url)
-    |> Map.put(:status, response.status)
-    |> Map.put(:headers, response.headers)
-    |> Map.put(:body, response.body)
-    |> enrich_response(@response_headers)
-    |> populate_x_ms_meta_from_headers()
-    |> (fn response = %{body: body} ->
-          case opts |> Keyword.get(:xml_body_parser) do
-            nil ->
-              response
-
-            xml_parser when is_function(xml_parser) ->
-              response
-              |> Map.merge(body |> xmap(xml_parser.()))
-          end
-        end).()
+  defp copy_response_headers_into_map(response = %{}) do
+    Enum.reduce(@response_headers, response, fn x, response ->
+      response |> copy_response_header_into_map(x)
+    end)
   end
 
-  defp enrich_response(response = %{}, []), do: response
+  defp copy_response_header_into_map(response, {http_header, key_to_set}),
+    do: response |> copy_response_header_into_map({http_header, key_to_set, &identity/1})
 
-  defp enrich_response(response = %{}, [head | tail]),
-    do:
-      response
-      |> copy_from_header(head)
-      |> enrich_response(tail)
-
-  defp copy_from_header(response, {http_header, key_to_set}),
-    do: response |> copy_from_header({http_header, key_to_set, &identity/1})
-
-  defp copy_from_header(response, {http_header, key_to_set, transform})
+  defp copy_response_header_into_map(response, {http_header, key_to_set, transform})
        when is_map(response) and is_atom(key_to_set) and is_binary(http_header) and
               is_function(transform, 1) do
     http_header = http_header |> String.downcase()
@@ -354,7 +354,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     end
   end
 
-  defp populate_x_ms_meta_from_headers(response) do
+  defp copy_x_ms_meta_headers_into_map(response) do
     x_ms_meta =
       response.headers
       |> Enum.filter(fn {k, _v} -> k |> String.starts_with?(@prefix_x_ms_meta) end)
