@@ -1,5 +1,6 @@
 defmodule Microsoft.Azure.Storage.BlobPolicy do
   import SweetXml
+  import Microsoft.Azure.Storage.DateTimeUtils
   require EEx
 
   defstruct [:id, :start, :expiry, :permission]
@@ -27,19 +28,16 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
   defp perm(unknown, _acc) when is_binary(unknown),
     do: raise("Received unknown permission #{inspect(unknown)}")
 
-  defp date_parse(date) do
-    {:ok, result, 0} = date |> DateTime.from_iso8601()
-    result
-  end
-
   def deserialize(xml_body) do
     xml_body
     |> xpath(~x"/SignedIdentifiers/SignedIdentifier"l)
     |> Enum.map(fn node ->
       %__MODULE__{
         id: node |> xpath(~x"./Id/text()"s),
-        start: node |> xpath(~x"./AccessPolicy/Start/text()"s |> transform_by(&date_parse/1)),
-        expiry: node |> xpath(~x"./AccessPolicy/Expiry/text()"s |> transform_by(&date_parse/1)),
+        start:
+          node |> xpath(~x"./AccessPolicy/Start/text()"s |> transform_by(&date_parse_iso8601/1)),
+        expiry:
+          node |> xpath(~x"./AccessPolicy/Expiry/text()"s |> transform_by(&date_parse_iso8601/1)),
         permission:
           node
           |> xpath(~x"./AccessPolicy/Permission/text()"s |> transform_by(&permission_parse/1))

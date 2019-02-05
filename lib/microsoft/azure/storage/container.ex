@@ -22,7 +22,7 @@ defmodule Microsoft.Azure.Storage.Container do
             ~x"./Properties",
             last_modified:
               ~x"./Last-Modified/text()"s
-              |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+              |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
             e_tag: ~x"./Etag/text()"s,
             lease_status: ~x"./LeaseStatus/text()"s,
             lease_state: ~x"./LeaseState/text()"s,
@@ -44,7 +44,7 @@ defmodule Microsoft.Azure.Storage.Container do
             ~x"./Properties",
             etag: ~x"./Etag/text()"s,
             last_modified:
-              ~x"./Last-Modified/text()"s |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+              ~x"./Last-Modified/text()"s |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
             content_length: ~x"./Content-Length/text()"i,
             content_type: ~x"./Content-Type/text()"s,
             content_encoding: ~x"./Content-Encoding/text()"s,
@@ -66,11 +66,11 @@ defmodule Microsoft.Azure.Storage.Container do
   def list_containers(context = %Storage{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-containers2
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:get)
       |> url("/")
       |> add_param(:query, :comp, "list")
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -87,12 +87,11 @@ defmodule Microsoft.Azure.Storage.Container do
   def create_container(%__MODULE__{storage_context: context, container_name: container_name}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/create-container
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:put)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
-      # |> body(nil)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -112,11 +111,11 @@ defmodule Microsoft.Azure.Storage.Container do
       }) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-properties
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -134,12 +133,12 @@ defmodule Microsoft.Azure.Storage.Container do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-metadata
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:head)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
       |> add_param(:query, :comp, "metadata")
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -157,12 +156,12 @@ defmodule Microsoft.Azure.Storage.Container do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-acl
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
       |> add_param(:query, :comp, "acl")
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -194,7 +193,8 @@ defmodule Microsoft.Azure.Storage.Container do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-container-acl#remarks
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:put)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
@@ -206,7 +206,6 @@ defmodule Microsoft.Azure.Storage.Container do
               :container -> r |> add_header("x-ms-blob-public-access", "container")
             end
           end).()
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -228,14 +227,14 @@ defmodule Microsoft.Azure.Storage.Container do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-container-acl#remarks
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:put)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
       |> add_param(:query, :comp, "acl")
       |> add_header("Content-Type", "application/xml")
       |> body(access_policies |> BlobPolicy.serialize())
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -252,11 +251,11 @@ defmodule Microsoft.Azure.Storage.Container do
   def delete_container(%__MODULE__{storage_context: context, container_name: container_name}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-container
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:delete)
       |> url("/#{container_name}")
       |> add_param(:query, :restype, "container")
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -284,7 +283,8 @@ defmodule Microsoft.Azure.Storage.Container do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-blobs
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}")
       |> add_param(:query, :comp, "list")
@@ -295,7 +295,6 @@ defmodule Microsoft.Azure.Storage.Container do
       |> add_param_if(opts[:maxresults] != nil, :query, :maxresults, opts[:maxresults])
       |> add_param_if(opts[:timeout] != nil, :query, :timeout, opts[:timeout])
       |> add_param_if(opts[:include] != nil, :query, :include, opts[:include])
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do

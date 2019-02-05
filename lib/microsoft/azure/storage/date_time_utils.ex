@@ -8,7 +8,14 @@ defmodule Microsoft.Azure.Storage.DateTimeUtils do
       |> Timex.format!("{RFC1123z}")
       |> String.replace(" Z", " GMT")
 
-  def parse_rfc1123(str),
+  # "2019-02-05T16:43:10.4730000Z" |> Microsoft.Azure.Storage.DateTimeUtils.date_parse_iso8601()
+  def date_parse_iso8601(date) do
+    {:ok, result, 0} = date |> DateTime.from_iso8601()
+    result
+  end
+
+  # "Tue, 05 Feb 2019 16:58:12 GMT" |> Microsoft.Azure.Storage.DateTimeUtils.date_parse_rfc1123()
+  def date_parse_rfc1123(str),
     do:
       str
       |> Timex.parse!("{RFC1123}")

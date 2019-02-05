@@ -5,7 +5,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   alias Microsoft.Azure.Storage.ApiVersion
   alias Microsoft.Azure.Storage.DateTimeUtils
 
-  def new_azure_storage_request, do: %{}
+  def new_azure_storage_request(storage = %Storage{}), do: %{storage_context: storage}
 
   def method(request, m), do: request |> Map.put_new(:method, m)
 
@@ -110,16 +110,6 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       opts
       |> Enum.filter(fn {_, value} -> value != nil && value != "" end)
       |> Enum.into([])
-
-  def add_storage_context(request, storage_context = %Storage{}),
-    do: request |> Map.put_new(:storage_context, storage_context)
-
-  def add_ms_context(request, storage_context, date, service) do
-    request
-    |> add_storage_context(storage_context)
-    |> add_header("x-ms-date", date)
-    |> add_header("x-ms-version", service |> ApiVersion.get_api_version())
-  end
 
   defp primary(account_name), do: account_name |> String.replace("-secondary", "")
 
@@ -249,6 +239,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       |> RestClient.new()
 
     request
+    |> add_header("x-ms-date", DateTimeUtils.utc_now())
+    |> add_header("x-ms-version", ApiVersion.get_api_version(:storage))
     |> remove_empty_headers()
     |> add_missing(:query, [])
     |> Map.put(:uri, uri)
@@ -298,9 +290,9 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   end
 
   @response_headers [
-    {"Date", :date, &DateTimeUtils.parse_rfc1123/1},
-    {"Last-Modified", :last_modified, &DateTimeUtils.parse_rfc1123/1},
-    {"Expires", :expires, &DateTimeUtils.parse_rfc1123/1},
+    {"Date", :date, &DateTimeUtils.date_parse_rfc1123/1},
+    {"Last-Modified", :last_modified, &DateTimeUtils.date_parse_rfc1123/1},
+    {"Expires", :expires, &DateTimeUtils.date_parse_rfc1123/1},
     {"ETag", :etag},
     {"Content-MD5", :content_md5},
     {"x-ms-request-id", :x_ms_request_id},
@@ -324,13 +316,16 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> Map.put(:body, response.body)
     |> enrich_response(@response_headers)
     |> populate_x_ms_meta_from_headers()
-    |> (fn(response = %{body: body}) ->
-      case opts |> Keyword.get(:xml_body_parser) do
-        nil -> response
-        xml_parser when is_function(xml_parser) -> response
-        |> Map.merge(body |> xmap(xml_parser.()))
-      end
-    end).()
+    |> (fn response = %{body: body} ->
+          case opts |> Keyword.get(:xml_body_parser) do
+            nil ->
+              response
+
+            xml_parser when is_function(xml_parser) ->
+              response
+              |> Map.merge(body |> xmap(xml_parser.()))
+          end
+        end).()
   end
 
   defp enrich_response(response = %{}, []), do: response

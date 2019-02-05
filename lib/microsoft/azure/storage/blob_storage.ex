@@ -5,7 +5,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   import Microsoft.Azure.Storage.RequestBuilder
 
   alias Microsoft.Azure.Storage
-  alias Microsoft.Azure.Storage.DateTimeUtils
   alias __MODULE__.ServiceProperties
 
   defmodule Responses do
@@ -313,16 +312,12 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   def get_blob_service_stats(context = %Storage{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-stats
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:get)
       |> url("/")
       |> add_param(:query, :restype, "service")
       |> add_param(:query, :comp, "stats")
-      |> add_ms_context(
-        context |> Storage.secondary(),
-        DateTimeUtils.utc_now(),
-        :storage
-      )
       |> sign_and_call(:blob_service)
 
     case response do
@@ -345,12 +340,12 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   def get_blob_service_properties(context = %Storage{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-properties
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:get)
       |> url("/")
       |> add_param(:query, :restype, "service")
       |> add_param(:query, :comp, "properties")
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -371,7 +366,8 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
   def set_blob_service_properties(context = %Storage{}, service_properties = %ServiceProperties{}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-blob-service-properties
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:put)
       |> url("/")
       |> add_param(:query, :restype, "service")
@@ -382,7 +378,6 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         |> Microsoft.Azure.Storage.BlobStorage.ServiceProperties.xml_blob_service_properties()
         |> XmlBuilder.generate(format: :none)
       )
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     response

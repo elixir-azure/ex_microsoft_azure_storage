@@ -22,13 +22,13 @@ defmodule Microsoft.Azure.Storage.Queue do
         pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
         insertion_time:
           ~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s
-          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
         expiration_time:
           ~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s
-          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
         time_next_visible:
           ~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s
-          |> transform_by(&DateTimeUtils.parse_rfc1123/1)
+          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1)
       ]
 
     def get_message_response(),
@@ -37,13 +37,13 @@ defmodule Microsoft.Azure.Storage.Queue do
         pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
         insertion_time:
           ~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s
-          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
         expiration_time:
           ~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s
-          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
         time_next_visible:
           ~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s
-          |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
         dequeue_count: ~x"/QueueMessagesList/QueueMessage/DequeueCount/text()"s,
         message_text:
           ~x"/QueueMessagesList/QueueMessage/MessageText/text()"s
@@ -70,12 +70,12 @@ defmodule Microsoft.Azure.Storage.Queue do
       end
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:put)
       |> url("/#{queue_name}")
       |> add_param_if(timeout > 0, :query, :timeout, timeout)
       |> add_header_x_ms_meta(meta)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
     case response do
@@ -97,11 +97,11 @@ defmodule Microsoft.Azure.Storage.Queue do
       end
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:delete)
       |> url("/#{queue_name}")
       |> add_param_if(timeout > 0, :query, :timeout, timeout)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
     case response do
@@ -127,12 +127,12 @@ defmodule Microsoft.Azure.Storage.Queue do
       end
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:get)
       |> url("/#{queue_name}")
       |> add_param(:query, :comp, "metadata")
       |> add_param_if(timeout > 0, :query, :timeout, timeout)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
     case response do
@@ -166,13 +166,13 @@ defmodule Microsoft.Azure.Storage.Queue do
       end
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:put)
       |> url("/#{queue_name}")
       |> add_param(:query, :comp, "metadata")
       |> add_param_if(timeout > 0, :query, :timeout, timeout)
       |> add_header_x_ms_meta(meta)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
     case response do
@@ -217,12 +217,12 @@ defmodule Microsoft.Azure.Storage.Queue do
     body = "<QueueMessage><MessageText>#{message |> Base.encode64()}</MessageText></QueueMessage>"
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:post)
       |> url("/#{queue_name}/messages")
       |> add_param_if(visibilitytimeout > 0, :query, :visibilitytimeout, visibilitytimeout)
       |> add_param_if(messagettl != 0, :query, :messagettl, messagettl)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> body(body)
       |> sign_and_call(:queue_service)
 
@@ -265,7 +265,8 @@ defmodule Microsoft.Azure.Storage.Queue do
       end
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:get)
       |> url("/#{queue_name}/messages")
       |> add_param_if(
@@ -286,7 +287,6 @@ defmodule Microsoft.Azure.Storage.Queue do
         :timeout,
         timeout
       )
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
     case response do
@@ -310,12 +310,12 @@ defmodule Microsoft.Azure.Storage.Queue do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-message2
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:delete)
       |> url("/#{queue_name}/messages/messageid")
       |> add_param(:query, :popreceipt, popreceipt)
       |> add_param(:query, :timeout, timeout)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
     case response do
@@ -336,11 +336,11 @@ defmodule Microsoft.Azure.Storage.Queue do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/clear-messages
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:delete)
       |> url("/#{queue_name}/messages")
       |> add_param(:query, :timeout, timeout)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
     case response do

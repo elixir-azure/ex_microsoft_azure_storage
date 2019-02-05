@@ -3,7 +3,7 @@ defmodule Microsoft.Azure.Storage.Blob do
   use NamedArgs
   # import SweetXml
   import Microsoft.Azure.Storage.RequestBuilder
-  alias Microsoft.Azure.Storage.{DateTimeUtils, Container}
+  alias Microsoft.Azure.Storage.{Container}
 
   @enforce_keys [:container, :blob_name]
   defstruct [:container, :blob_name]
@@ -33,7 +33,8 @@ defmodule Microsoft.Azure.Storage.Blob do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/put-block
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:put)
       |> url("/#{container_name}/#{blob_name}")
       |> add_param(:query, :comp, "block")
@@ -41,7 +42,6 @@ defmodule Microsoft.Azure.Storage.Blob do
       |> add_param(:query, :blockid, block_id)
       |> body(content)
       |> add_header_content_md5()
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -68,12 +68,12 @@ defmodule Microsoft.Azure.Storage.Blob do
       when is_list(block_list) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/put-block-list
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:put)
       |> url("/#{container_name}/#{blob_name}")
       |> add_param(:query, :comp, "blocklist")
       |> body(block_list |> serialize_block_list())
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -136,13 +136,13 @@ defmodule Microsoft.Azure.Storage.Blob do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-block-list
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:get)
       |> url("/#{container_name}/#{blob_name}")
       |> add_param(:query, :comp, "blocklist")
       |> add_param(:query, :blocklisttype, block_list_type |> Atom.to_string())
       |> add_param_if(snapshot != nil, :query, :snapshot, snapshot)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -249,12 +249,12 @@ defmodule Microsoft.Azure.Storage.Blob do
       end
 
     response =
-      new_azure_storage_request()
+      context
+      |> new_azure_storage_request()
       |> method(:delete)
       |> url("/#{container_name}/#{blob_name}")
       |> add_param_if(snapshot != nil, :query, :snapshot, snapshot)
       |> add_param_if(timeout > 0, :query, :timeout, timeout)
-      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
