@@ -80,7 +80,7 @@ defmodule Microsoft.Azure.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: status} when status == 201 or status == 204 ->
         {:ok, response |> create_success_response()}
@@ -106,7 +106,7 @@ defmodule Microsoft.Azure.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: status} when status == 201 or status == 204 ->
         {:ok, response |> create_success_response()}
@@ -137,13 +137,10 @@ defmodule Microsoft.Azure.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
-        {:ok,
-         response
-         |> create_success_response()
-         |> Map.put(:meta, response |> extract_x_ms_meta_headers())}
+        {:ok, response |> create_success_response()}
     end
   end
 
@@ -180,13 +177,10 @@ defmodule Microsoft.Azure.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: status} when status == 201 or status == 204 ->
-        {:ok,
-         response
-         |> create_success_response()
-         |> Map.put(:meta, response |> extract_x_ms_meta_headers())}
+        {:ok, response |> create_success_response()}
     end
   end
 
@@ -234,13 +228,12 @@ defmodule Microsoft.Azure.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 201} ->
         {:ok,
          response
-         |> create_success_response()
-         |> enrich_with_xml_body(&Responses.put_message_response/0)}
+         |> create_success_response(xml_body_parser: &Responses.put_message_response/0)}
     end
   end
 
@@ -298,14 +291,13 @@ defmodule Microsoft.Azure.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
         {
           :ok,
           response
-          |> create_success_response()
-          |> enrich_with_xml_body(&Responses.get_message_response/0)
+          |> create_success_response(xml_body_parser: &Responses.get_message_response/0)
         }
     end
   end
@@ -328,7 +320,7 @@ defmodule Microsoft.Azure.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 204} ->
         {:ok,
@@ -353,7 +345,7 @@ defmodule Microsoft.Azure.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 204} ->
         {:ok,

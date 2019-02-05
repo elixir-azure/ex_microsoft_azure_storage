@@ -75,13 +75,12 @@ defmodule Microsoft.Azure.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
         {:ok,
          response
-         |> create_success_response()
-         |> enrich_with_xml_body(&Responses.list_containers_response/0)}
+         |> create_success_response(xml_body_parser: &Responses.list_containers_response/0)}
     end
   end
 
@@ -98,13 +97,12 @@ defmodule Microsoft.Azure.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 201} ->
         {:ok,
          response
-         |> create_success_response()
-         |> enrich_with_xml_body(&Responses.list_containers_response/0)}
+         |> create_success_response(xml_body_parser: &Responses.list_containers_response/0)}
     end
   end
 
@@ -123,7 +121,7 @@ defmodule Microsoft.Azure.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
         {:ok,
@@ -146,7 +144,7 @@ defmodule Microsoft.Azure.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
         {:ok,
@@ -169,7 +167,7 @@ defmodule Microsoft.Azure.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
         {:ok,
@@ -213,7 +211,7 @@ defmodule Microsoft.Azure.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
         {:ok,
@@ -242,7 +240,7 @@ defmodule Microsoft.Azure.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
         {:ok,
@@ -263,7 +261,7 @@ defmodule Microsoft.Azure.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 202} ->
         {:ok,
@@ -302,13 +300,12 @@ defmodule Microsoft.Azure.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
         {:ok,
          response
-         |> create_success_response()
-         |> enrich_with_xml_body(&Responses.list_blobs_response/0)}
+         |> create_success_response(xml_body_parser: &Responses.list_blobs_response/0)}
     end
   end
 

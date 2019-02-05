@@ -46,7 +46,7 @@ defmodule Microsoft.Azure.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 201} ->
         {:ok,
@@ -78,7 +78,7 @@ defmodule Microsoft.Azure.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 201} ->
         {:ok,
@@ -147,7 +147,7 @@ defmodule Microsoft.Azure.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 200} ->
         {:ok,
@@ -259,12 +259,10 @@ defmodule Microsoft.Azure.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: 202} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, response |> create_success_response()}
     end
   end
 end

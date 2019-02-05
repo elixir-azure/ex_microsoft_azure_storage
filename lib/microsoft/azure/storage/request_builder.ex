@@ -41,13 +41,6 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       kvp
       |> Enum.reduce(request, fn {k, v}, r -> r |> add_header(@prefix_x_ms_meta <> k, v) end)
 
-  def extract_x_ms_meta_headers(response) do
-    response.headers
-    |> Enum.filter(fn {k, _v} -> String.starts_with?(k, @prefix_x_ms_meta) end)
-    |> Enum.map(fn {@prefix_x_ms_meta <> k, v} -> {k, v} end)
-    |> Enum.into(%{})
-  end
-
   def add_optional_params(request, _, []), do: request
 
   def add_optional_params(request, definitions, [{key, value} | tail]) do
@@ -277,21 +270,21 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   def decode(%Tesla.Env{status: 200, body: body}, struct), do: Poison.decode(body, as: struct)
   def decode(response, _struct), do: {:error, response}
 
+  defmodule Responses do
+    def error_response(),
+      do: [
+        error_code: ~x"/Error/Code/text()"s,
+        error_message: ~x"/Error/Message/text()"s,
+        authentication_error_detail: ~x"/Error/AuthenticationErrorDetail/text()"s,
+        query_parameter_name: ~x"/Error/QueryParameterName/text()"s,
+        query_parameter_value: ~x"/Error/QueryParameterValue/text()"s
+      ]
+  end
+
   def create_error_response(response = %{}) do
-    {:error,
-     response.body
-     |> xmap(
-       code: ~x"/Error/Code/text()"s,
-       message: ~x"/Error/Message/text()"s,
-       authentication_error_detail: ~x"/Error/AuthenticationErrorDetail/text()"s,
-       query_parameter_name: ~x"/Error/QueryParameterName/text()"s,
-       query_parameter_value: ~x"/Error/QueryParameterValue/text()"s
-     )
-     |> Map.update!(:message, &String.split(&1, "\n"))
-     |> Map.put(:status, response.status)
-     |> Map.put(:url, response.url)
-     |> Map.put(:body, response.body)
-     |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+    response
+    |> create_success_response(xml_body_parser: &__MODULE__.Responses.error_response/0)
+    |> Map.update!(:error_message, &String.split(&1, "\n"))
   end
 
   def identity(x), do: x
@@ -319,35 +312,41 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     {"x-ms-has-immutability-policy", :x_ms_has_immutability_policy, &__MODULE__.to_bool/1},
     {"x-ms-has-legal-hold", :x_ms_has_legal_hold, &__MODULE__.to_bool/1},
     {"x-ms-approximate-messages-count", :x_ms_approximate_messages_count,
-     &__MODULE__.to_integer!/1}
+     &__MODULE__.to_integer!/1},
+    {"x-ms-error-code", :x_ms_error_code}
   ]
 
-  def create_success_response(response, map \\ %{}) do
-    map
+  def create_success_response(response, opts \\ []) do
+    Map.new()
     |> Map.put(:request_url, response.url)
     |> Map.put(:status, response.status)
     |> Map.put(:headers, response.headers)
     |> Map.put(:body, response.body)
     |> enrich_response(@response_headers)
+    |> populate_x_ms_meta_from_headers()
+    |> (fn(response = %{body: body}) ->
+      case opts |> Keyword.get(:xml_body_parser) do
+        nil -> response
+        xml_parser when is_function(xml_parser) -> response
+        |> Map.merge(body |> xmap(xml_parser.()))
+      end
+    end).()
   end
 
-  def enrich_response(response = %{}, []), do: response
+  defp enrich_response(response = %{}, []), do: response
 
-  def enrich_response(response = %{}, [{header, key} | tail]),
+  defp enrich_response(response = %{}, [head | tail]),
     do:
       response
-      |> copy_from_header(header, key)
+      |> copy_from_header(head)
       |> enrich_response(tail)
 
-  def enrich_response(response = %{}, [{header, key, transform} | tail]),
-    do:
-      response
-      |> copy_from_header(header, key, transform)
-      |> enrich_response(tail)
+  defp copy_from_header(response, {http_header, key_to_set}),
+    do: response |> copy_from_header({http_header, key_to_set, &identity/1})
 
-  def copy_from_header(response, http_header, key_to_set, transform \\ &identity/1)
-      when is_map(response) and is_atom(key_to_set) and is_binary(http_header) and
-             is_function(transform, 1) do
+  defp copy_from_header(response, {http_header, key_to_set, transform})
+       when is_map(response) and is_atom(key_to_set) and is_binary(http_header) and
+              is_function(transform, 1) do
     http_header = http_header |> String.downcase()
 
     if response.headers |> Map.has_key?(http_header) do
@@ -360,8 +359,16 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     end
   end
 
-  def enrich_with_xml_body(response = %{body: body}, xml_parser) when is_function(xml_parser) do
-    response
-    |> Map.merge(body |> xmap(xml_parser.()))
+  defp populate_x_ms_meta_from_headers(response) do
+    x_ms_meta =
+      response.headers
+      |> Enum.filter(fn {k, _v} -> k |> String.starts_with?(@prefix_x_ms_meta) end)
+      |> Enum.map(fn {@prefix_x_ms_meta <> k, v} -> {k, v} end)
+      |> Enum.into(%{})
+
+    case x_ms_meta |> Enum.empty?() do
+      true -> response
+      false -> response |> Map.put(:x_ms_meta, x_ms_meta)
+    end
   end
 end

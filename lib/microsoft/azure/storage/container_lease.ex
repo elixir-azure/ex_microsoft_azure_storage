@@ -27,7 +27,7 @@ defmodule Microsoft.Azure.Storage.ContainerLease do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        response |> create_error_response()
+        {:error, response |> create_error_response()}
 
       %{status: ^expected_status_code} ->
         {:ok,
