@@ -50,17 +50,8 @@ defmodule Microsoft.Azure.Storage.Blob do
 
       %{status: 201} ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"],
-           etag: response.headers["etag"],
-           last_modified: response.headers["last-modified"],
-           server_encrypted: response.headers["x-ms-request-server-encrypted"],
-           content_md5: response.headers["Content-MD5"],
-           body: response.body
-         }}
+         response
+         |> create_success_response()}
     end
   end
 
@@ -91,17 +82,8 @@ defmodule Microsoft.Azure.Storage.Blob do
 
       %{status: 201} ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           etag: response.headers["etag"],
-           request_id: response.headers["x-ms-request-id"],
-           last_modified: response.headers["last-modified"],
-           server_encrypted: response.headers["x-ms-request-server-encrypted"],
-           content_md5: response.headers["Content-MD5"],
-           body: response.body
-         }}
+         response
+         |> create_success_response()}
     end
   end
 
@@ -169,17 +151,8 @@ defmodule Microsoft.Azure.Storage.Blob do
 
       %{status: 200} ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"],
-           etag: response.headers["etag"],
-           last_modified: response.headers["last-modified"],
-           server_encrypted: response.headers["x-ms-request-server-encrypted"],
-           content_md5: response.headers["Content-MD5"],
-           body: response.body
-         }
+         response
+         |> create_success_response()
          |> Map.merge(response.body |> deserialize_block_list())}
     end
   end
@@ -290,13 +263,8 @@ defmodule Microsoft.Azure.Storage.Blob do
 
       %{status: 202} ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"],
-           delete_type_permanent: response.headers["x-ms-delete-type-permanent"]
-         }}
+         response
+         |> create_success_response()}
     end
   end
 end

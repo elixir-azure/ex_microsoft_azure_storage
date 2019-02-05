@@ -167,7 +167,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
            storage_context:
              storage_context = %Storage{
                is_development_factory: is_development_factory,
-               account_key: account_key
+               account_key: account_key,
+               aad_token_provider: nil
              }
          }
        )
@@ -226,7 +227,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
          request = %{
            storage_context: %Storage{account_key: nil, aad_token_provider: aad_token_provider},
            uri: uri
-         }) do
+         }
+       ) do
     audience = uri |> trim_uri_for_aad_request()
 
     request
@@ -234,9 +236,9 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   end
 
   defp trim_uri_for_aad_request(uri) when is_binary(uri) do
-    %URI{ host: host, scheme: scheme} = uri |> URI.parse()
+    %URI{host: host, scheme: scheme} = uri |> URI.parse()
 
-    %URI{ host: host, scheme: scheme}
+    %URI{host: host, scheme: scheme}
     |> URI.to_string()
   end
 
@@ -293,35 +295,73 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   end
 
   def identity(x), do: x
-
-  def add_if_header_exists_in_response(
-        map,
-        response,
-        header_str,
-        key,
-        transformer \\ &__MODULE__.identity/1
-      )
-      when is_map(map) and is_map(response) and is_binary(header_str) and is_atom(key) do
-    case(response.headers[header_str]) do
-      nil -> map
-      val -> map |> Map.put(key, transformer.(val))
-    end
-  end
-
-  def create_success_response(response, map \\ %{}) do
-    map
-    |> Map.put(:status, response.status)
-    |> Map.put(:headers, response.headers)
-    |> Map.put(:request_url, response.url)
-    |> add_if_header_exists_in_response(response, "last-modified", :last_modified, &DateTimeUtils.parse_rfc1123/1)
-    |> add_if_header_exists_in_response(response, "date", :date, &DateTimeUtils.parse_rfc1123/1)
-    |> add_if_header_exists_in_response(response, "x-ms-request-id", :request_id)
-    |> add_if_header_exists_in_response(response, "expires", :expires, &DateTimeUtils.parse_rfc1123/1)
-    |> add_if_header_exists_in_response(response, "etag", :etag)
-    |> Map.put(:body, response.body)
-  end
-
   def to_bool("true"), do: true
   def to_bool("false"), do: false
   def to_bool(_), do: false
+
+  def to_integer!(x) do
+    {i, ""} = x |> Integer.parse()
+    i
+  end
+
+  @response_headers [
+    {"Date", :date, &DateTimeUtils.parse_rfc1123/1},
+    {"Last-Modified", :last_modified, &DateTimeUtils.parse_rfc1123/1},
+    {"Expires", :expires, &DateTimeUtils.parse_rfc1123/1},
+    {"ETag", :etag},
+    {"Content-MD5", :content_md5},
+    {"x-ms-request-id", :x_ms_request_id},
+    {"x-ms-lease-state", :x_ms_lease_state},
+    {"x-ms-lease-status", :x_ms_lease_status},
+    {"x-ms-request-server-encrypted", :x_ms_request_server_encrypted, &__MODULE__.to_bool/1},
+    {"x-ms-delete-type-permanent", :x_ms_delete_type_permanent},
+    {"x-ms-blob-public-access", :x_ms_blob_public_access},
+    {"x-ms-has-immutability-policy", :x_ms_has_immutability_policy, &__MODULE__.to_bool/1},
+    {"x-ms-has-legal-hold", :x_ms_has_legal_hold, &__MODULE__.to_bool/1},
+    {"x-ms-approximate-messages-count", :x_ms_approximate_messages_count,
+     &__MODULE__.to_integer!/1}
+  ]
+
+  def create_success_response(response, map \\ %{}) do
+    map
+    |> Map.put(:request_url, response.url)
+    |> Map.put(:status, response.status)
+    |> Map.put(:headers, response.headers)
+    |> Map.put(:body, response.body)
+    |> enrich_response(@response_headers)
+  end
+
+  def enrich_response(response = %{}, []), do: response
+
+  def enrich_response(response = %{}, [{header, key} | tail]),
+    do:
+      response
+      |> copy_from_header(header, key)
+      |> enrich_response(tail)
+
+  def enrich_response(response = %{}, [{header, key, transform} | tail]),
+    do:
+      response
+      |> copy_from_header(header, key, transform)
+      |> enrich_response(tail)
+
+  def copy_from_header(response, http_header, key_to_set, transform \\ &identity/1)
+      when is_map(response) and is_atom(key_to_set) and is_binary(http_header) and
+             is_function(transform, 1) do
+    http_header = http_header |> String.downcase()
+
+    if response.headers |> Map.has_key?(http_header) do
+      case response.headers[http_header] do
+        nil -> response
+        val -> response |> Map.put(key_to_set, val |> transform.())
+      end
+    else
+      response
+    end
+  end
+
+  def enrich_with_xml_body(response = %{body: body}, xml_parser) when is_function(xml_parser) do
+    response
+    |> Map.merge(body |> xmap(xml_parser.()))
+  end
 end

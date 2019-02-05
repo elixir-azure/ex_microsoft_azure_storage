@@ -143,10 +143,6 @@ defmodule Microsoft.Azure.Storage.Queue do
         {:ok,
          response
          |> create_success_response()
-         |> Map.put(
-           :approximate_message_count,
-           response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0)
-         )
          |> Map.put(:meta, response |> extract_x_ms_meta_headers())}
     end
   end
@@ -190,7 +186,6 @@ defmodule Microsoft.Azure.Storage.Queue do
         {:ok,
          response
          |> create_success_response()
-         # |> Map.put(:meta, response.headers["x-ms-approximate-messages-count"] |> Integer.parse() |> elem(0))
          |> Map.put(:meta, response |> extract_x_ms_meta_headers())}
     end
   end
@@ -243,24 +238,23 @@ defmodule Microsoft.Azure.Storage.Queue do
 
       %{status: 201} ->
         {:ok,
-         response.body
-         |> xmap(Responses.put_message_response())
-         |> Map.put(:headers, response.headers)
-         |> Map.put(:url, response.url)
-         |> Map.put(:status, response.status)
-         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+         response
+         |> create_success_response()
+         |> enrich_with_xml_body(&Responses.put_message_response/0)}
     end
   end
 
   def get_message(%__MODULE__{storage_context: context, queue_name: queue_name}, opts \\ []) do
-    # https://docs.microsoft.com/en-us/rest/api/storageservices/get-message
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/get-messages
+
+    opts_defaults = [numofmessages: 1, visibilitytimeout: 30, timeout: 0]
 
     %{
       numofmessages: numofmessages,
       visibilitytimeout: visibilitytimeout,
       timeout: timeout
     } =
-      case [numofmessages: 1, visibilitytimeout: 0, timeout: 0]
+      case opts_defaults
            |> Keyword.merge(opts)
            |> Enum.into(%{}) do
         %{
@@ -269,7 +263,7 @@ defmodule Microsoft.Azure.Storage.Queue do
           timeout: timeout
         }
         when is_integer(numofmessages) and numofmessages >= 1 and numofmessages <= 32 and
-               visibilitytimeout > 1 and visibilitytimeout <= @seconds_7_days ->
+               (visibilitytimeout >= 1 and visibilitytimeout <= @seconds_7_days) ->
           %{
             numofmessages: numofmessages,
             visibilitytimeout: visibilitytimeout,
@@ -281,9 +275,24 @@ defmodule Microsoft.Azure.Storage.Queue do
       new_azure_storage_request()
       |> method(:get)
       |> url("/#{queue_name}/messages")
-      |> add_param(:query, :numofmessages, numofmessages)
-      |> add_param(:query, :visibilitytimeout, visibilitytimeout)
-      |> add_param(:query, :timeout, timeout)
+      |> add_param_if(
+        numofmessages != opts_defaults |> Keyword.get(:numofmessages),
+        :query,
+        :numofmessages,
+        numofmessages
+      )
+      |> add_param_if(
+        visibilitytimeout != opts_defaults |> Keyword.get(:visibilitytimeout),
+        :query,
+        :visibilitytimeout,
+        visibilitytimeout
+      )
+      |> add_param_if(
+        timeout != opts_defaults |> Keyword.get(:timeout),
+        :query,
+        :timeout,
+        timeout
+      )
       |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:queue_service)
 
@@ -292,13 +301,12 @@ defmodule Microsoft.Azure.Storage.Queue do
         response |> create_error_response()
 
       %{status: 200} ->
-        {:ok,
-         response.body
-         |> xmap(Responses.get_message_response())
-         |> Map.put(:headers, response.headers)
-         |> Map.put(:url, response.url)
-         |> Map.put(:status, response.status)
-         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+        {
+          :ok,
+          response
+          |> create_success_response()
+          |> enrich_with_xml_body(&Responses.get_message_response/0)
+        }
     end
   end
 
@@ -324,12 +332,8 @@ defmodule Microsoft.Azure.Storage.Queue do
 
       %{status: 204} ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"]
-         }}
+         response
+         |> create_success_response()}
     end
   end
 
@@ -353,12 +357,8 @@ defmodule Microsoft.Azure.Storage.Queue do
 
       %{status: 204} ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"]
-         }}
+         response
+         |> create_success_response()}
     end
   end
 end

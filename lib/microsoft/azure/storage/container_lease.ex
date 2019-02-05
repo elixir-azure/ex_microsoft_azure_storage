@@ -1,6 +1,6 @@
 defmodule Microsoft.Azure.Storage.ContainerLease do
   import Microsoft.Azure.Storage.RequestBuilder
-  alias Microsoft.Azure.Storage.Container
+  alias Microsoft.Azure.Storage.{Container, DateTimeUtils}
 
   # "x-ms-lease-action" acquire/renew/change/release/break
   # "x-ms-lease-id"     Required for renew/change/release
@@ -22,7 +22,7 @@ defmodule Microsoft.Azure.Storage.ContainerLease do
       |> add_param(:query, :comp, "lease")
       |> add_param(:query, :restype, "container")
       |> fn_prepare_request.()
-      |> add_ms_context(context, Microsoft.Azure.Storage.DateTimeUtils.utc_now(), :storage)
+      |> add_ms_context(context, DateTimeUtils.utc_now(), :storage)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -31,13 +31,8 @@ defmodule Microsoft.Azure.Storage.ContainerLease do
 
       %{status: ^expected_status_code} ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"],
-           lease_id: response.headers["x-ms-lease-id"]
-         }
+         response
+         |> create_success_response()
          |> fn_prepare_response.(response)}
     end
   end

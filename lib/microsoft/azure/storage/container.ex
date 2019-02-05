@@ -20,13 +20,15 @@ defmodule Microsoft.Azure.Storage.Container do
           name: ~x"./Name/text()"s,
           properties: [
             ~x"./Properties",
-            lastModified: ~x"./Last-Modified/text()"s
-            |> transform_by(&DateTimeUtils.parse_rfc1123/1),
-            eTag: ~x"./Etag/text()"s,
-            leaseStatus: ~x"./LeaseStatus/text()"s,
-            leaseState: ~x"./LeaseState/text()"s,
-            hasImmutabilityPolicy: ~x"./HasImmutabilityPolicy/text()"s |> transform_by(&to_bool/1),
-            hasLegalHold: ~x"./HasLegalHold/text()"s |> transform_by(&to_bool/1)
+            last_modified:
+              ~x"./Last-Modified/text()"s
+              |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+            e_tag: ~x"./Etag/text()"s,
+            lease_status: ~x"./LeaseStatus/text()"s,
+            lease_state: ~x"./LeaseState/text()"s,
+            has_immutability_policy:
+              ~x"./HasImmutabilityPolicy/text()"s |> transform_by(&to_bool/1),
+            has_legal_hold: ~x"./HasLegalHold/text()"s |> transform_by(&to_bool/1)
           ]
         ]
       ]
@@ -41,7 +43,8 @@ defmodule Microsoft.Azure.Storage.Container do
           properties: [
             ~x"./Properties",
             etag: ~x"./Etag/text()"s,
-            last_modified: ~x"./Last-Modified/text()"s |> transform_by(&DateTimeUtils.parse_rfc1123/1),
+            last_modified:
+              ~x"./Last-Modified/text()"s |> transform_by(&DateTimeUtils.parse_rfc1123/1),
             content_length: ~x"./Content-Length/text()"i,
             content_type: ~x"./Content-Type/text()"s,
             content_encoding: ~x"./Content-Encoding/text()"s,
@@ -76,12 +79,9 @@ defmodule Microsoft.Azure.Storage.Container do
 
       %{status: 200} ->
         {:ok,
-         response.body
-         |> xmap(__MODULE__.Responses.list_containers_response())
-         |> Map.put(:headers, response.headers)
-         |> Map.put(:url, response.url)
-         |> Map.put(:status, response.status)
-         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+         response
+         |> create_success_response()
+         |> enrich_with_xml_body(&Responses.list_containers_response/0)}
     end
   end
 
@@ -102,14 +102,9 @@ defmodule Microsoft.Azure.Storage.Container do
 
       %{status: 201} ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"],
-           etag: response.headers["etag"],
-           last_modified: response.headers["last-modified"]
-         }}
+         response
+         |> create_success_response()
+         |> enrich_with_xml_body(&Responses.list_containers_response/0)}
     end
   end
 
@@ -131,14 +126,9 @@ defmodule Microsoft.Azure.Storage.Container do
         response |> create_error_response()
 
       %{status: 200} ->
-        {:ok, response
-        |> create_success_response()
-        |> Map.put(:etag, response.headers["etag"])
-        |> Map.put(:lease_state, response.headers["x-ms-lease-state"])
-        |> Map.put(:lease_status, response.headers["x-ms-lease-status"])
-        |> Map.put(:hasImmutabilityPolicy, response.headers["x-ms-has-immutability-policy"] |> to_bool())
-        |> Map.put(:hasLegalHold, response.headers["x-ms-has-legal-hold"] |> to_bool())
-        }
+        {:ok,
+         response
+         |> create_success_response()}
     end
   end
 
@@ -160,16 +150,8 @@ defmodule Microsoft.Azure.Storage.Container do
 
       %{status: 200} ->
         {:ok,
-         %{
-           headers: response.headers,
-           url: response.url,
-           status: response.status,
-           request_id: response.headers["x-ms-request-id"],
-           etag: response.headers["etag"],
-           last_modified: response.headers["last-modified"],
-           lease_state: response.headers["x-ms-lease-state"],
-           lease_status: response.headers["x-ms-lease-status"]
-         }}
+         response
+         |> create_success_response()}
     end
   end
 
@@ -191,12 +173,9 @@ defmodule Microsoft.Azure.Storage.Container do
 
       %{status: 200} ->
         {:ok,
-        response
-        |> create_success_response()
-        |> Map.put(:etag, response.headers["etag"])
-        |> Map.put(:blob_public_access, response.headers["x-ms-blob-public-access"])
-        |> Map.put(:policies, response.body |> process_body([], &BlobPolicy.deserialize/1))
-        }
+         response
+         |> create_success_response()
+         |> Map.put(:policies, response.body |> process_body([], &BlobPolicy.deserialize/1))}
     end
   end
 
@@ -236,11 +215,10 @@ defmodule Microsoft.Azure.Storage.Container do
       %{status: status} when 400 <= status and status < 500 ->
         response |> create_error_response()
 
-      %{status: 200} -
-        {:ok, response
-          |> create_success_response()
-          |> Map.put(:etag, response.headers["etag"])
-        }
+      %{status: 200} ->
+        {:ok,
+         response
+         |> create_success_response()}
     end
   end
 
@@ -267,10 +245,9 @@ defmodule Microsoft.Azure.Storage.Container do
         response |> create_error_response()
 
       %{status: 200} ->
-        {:ok, response
-          |> create_success_response()
-          |> Map.put(:etag, response.headers["etag"])
-        }
+        {:ok,
+         response
+         |> create_success_response()}
     end
   end
 
@@ -289,10 +266,9 @@ defmodule Microsoft.Azure.Storage.Container do
         response |> create_error_response()
 
       %{status: 202} ->
-        {:ok, response
-          |> create_success_response()
-          |> Map.put(:etag, response.headers["etag"])
-        }
+        {:ok,
+         response
+         |> create_success_response()}
     end
   end
 
@@ -330,12 +306,9 @@ defmodule Microsoft.Azure.Storage.Container do
 
       %{status: 200} ->
         {:ok,
-         response.body
-         |> xmap(__MODULE__.Responses.list_blobs_response())
-         |> Map.put(:headers, response.headers)
-         |> Map.put(:url, response.url)
-         |> Map.put(:status, response.status)
-         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+         response
+         |> create_success_response()
+         |> enrich_with_xml_body(&Responses.list_blobs_response/0)}
     end
   end
 
