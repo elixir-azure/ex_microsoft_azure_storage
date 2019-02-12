@@ -168,8 +168,7 @@ defmodule Microsoft.Azure.Storage.Blob do
 
     existing_block_ids =
       case blob |> get_block_list(:all) do
-        {:error, %{code: "BlobNotFound", status: 404}} ->
-          %{}
+        {:error, %{ status: 404}} -> %{}
 
         {:ok, %{uncommitted_blocks: uncommitted_blocks, committed_blocks: committed_blocks}} ->
           a =
