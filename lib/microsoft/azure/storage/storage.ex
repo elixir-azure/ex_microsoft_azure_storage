@@ -16,6 +16,8 @@ defmodule Microsoft.Azure.Storage do
     file_service: "file"
   }
 
+  @development_fabric_key "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+
   @doc """
   Returns the storage context for the Azure storage emulator.
   """
@@ -23,8 +25,7 @@ defmodule Microsoft.Azure.Storage do
     do: %__MODULE__{
       # https://docs.microsoft.com/en-us/azure/storage/common/storage-use-emulator#authenticating-requests-against-the-storage-emulator
       account_name: "devstoreaccount1",
-      account_key:
-        "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==",
+      account_key: @development_fabric_key,
       is_development_factory: true
     }
 

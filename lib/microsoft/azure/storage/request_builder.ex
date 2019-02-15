@@ -316,18 +316,21 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     {"Expires", :expires, &DateTimeUtils.date_parse_rfc1123/1},
     {"ETag", :etag},
     {"Content-MD5", :content_md5},
+    {"x-ms-client-request-id", :x_ms_client_request_id},
     {"x-ms-request-id", :x_ms_request_id},
     {"x-ms-lease-state", :x_ms_lease_state},
+    {"x-ms-blob-type", :x_ms_blob_type},
     {"x-ms-lease-status", :x_ms_lease_status},
     {"x-ms-request-server-encrypted", :x_ms_request_server_encrypted, &__MODULE__.to_bool/1},
     {"x-ms-delete-type-permanent", :x_ms_delete_type_permanent},
-    {"x-ms-blob-public-access", :x_ms_blob_public_access},
     {"x-ms-has-immutability-policy", :x_ms_has_immutability_policy, &__MODULE__.to_bool/1},
     {"x-ms-has-legal-hold", :x_ms_has_legal_hold, &__MODULE__.to_bool/1},
     {"x-ms-approximate-messages-count", :x_ms_approximate_messages_count,
      &__MODULE__.to_integer!/1},
     {"x-ms-error-code", :x_ms_error_code},
-    {"x-ms-blob-public-access", :x_ms_blob_public_access, &Container.parse_access_level/1}
+    {"x-ms-blob-public-access", :x_ms_blob_public_access, &Container.parse_access_level/1},
+    {"x-ms-blob-cache-control", :x_ms_blob_cache_control},
+    {"x-ms-cache-control", :x_ms_cache_control}
   ]
 
   defp copy_response_headers_into_map(response = %{}) do

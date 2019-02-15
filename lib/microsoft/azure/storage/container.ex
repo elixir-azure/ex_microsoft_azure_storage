@@ -101,7 +101,7 @@ defmodule Microsoft.Azure.Storage.Container do
       %{status: 201} ->
         {:ok,
          response
-         |> create_success_response(xml_body_parser: &Responses.list_containers_response/0)}
+         |> create_success_response()}
     end
   end
 

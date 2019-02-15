@@ -17,8 +17,10 @@ defmodule Microsoft.Azure.Storage.RestClient do
         |> (fn [host, port] ->
               {Tesla.Middleware.Opts,
                [
+                 # https://github.com/cmullaparthi/ibrowse/wiki/ibrowse-API
                  proxy_host: host |> String.to_charlist(),
-                 proxy_port: port |> Integer.parse() |> elem(0)
+                 proxy_port: port |> Integer.parse() |> elem(0),
+                 inactivity_timeout: 40_000
                ]}
             end).()
     end

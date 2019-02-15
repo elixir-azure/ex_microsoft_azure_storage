@@ -1,32 +1,18 @@
 defmodule Microsoft.Azure.Storage.BlobPolicy do
   import SweetXml
   import Microsoft.Azure.Storage.DateTimeUtils
+  import Microsoft.Azure.Storage.Utilities, only: [set_to_string: 2, string_to_set: 2]
   require EEx
 
   defstruct [:id, :start, :expiry, :permission]
 
-  def permission_serialize(list) when is_list(list), do: list |> Enum.uniq() |> perm_ser("")
+  @perms %{read: "r", write: "w", delete: "d", list: "l"}
 
-  defp perm_ser([], acc), do: acc
-  defp perm_ser([:read | tail], acc), do: tail |> perm_ser("r" <> acc)
-  defp perm_ser([:write | tail], acc), do: tail |> perm_ser("w" <> acc)
-  defp perm_ser([:delete | tail], acc), do: tail |> perm_ser("d" <> acc)
-  defp perm_ser([:list | tail], acc), do: tail |> perm_ser("l" <> acc)
-  # @blob_permissions %{read: "r", write: "w", delete: "d", list: "l"}
-  # defp perm_ser([a | tail], acc) when is_atom(a), do: tail |> perm_ser(Map.get(@blob_permissions, a, "") <> acc)
+  def permission_serialize(permissions) when is_list(permissions),
+    do: permissions |> set_to_string(@perms)
 
-  defp perm_ser([unknown | _tail], _acc) when is_atom(unknown),
-    do: raise("Received unknown permission #{inspect(unknown)}")
-
-  def permission_parse(str) when is_binary(str), do: str |> perm([]) |> Enum.uniq()
-  defp perm("", acc), do: acc
-  defp perm("r" <> str, acc), do: str |> perm([:read | acc])
-  defp perm("w" <> str, acc), do: str |> perm([:write | acc])
-  defp perm("d" <> str, acc), do: str |> perm([:delete | acc])
-  defp perm("l" <> str, acc), do: str |> perm([:list | acc])
-
-  defp perm(unknown, _acc) when is_binary(unknown),
-    do: raise("Received unknown permission #{inspect(unknown)}")
+  def permission_parse(str) when is_binary(str),
+    do: str |> string_to_set(@perms)
 
   def deserialize(xml_body) do
     xml_body
