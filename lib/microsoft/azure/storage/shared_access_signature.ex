@@ -1,5 +1,6 @@
 defmodule Microsoft.Azure.Storage.SharedAccessSignature do
   alias Microsoft.Azure.Storage
+  alias Microsoft.Azure.Storage.ApiVersion
   import Microsoft.Azure.Storage.Utilities, only: [add_to: 3, set_to_string: 2]
 
   # https://docs.microsoft.com/en-us/rest/api/storageservices/delegating-access-with-a-shared-access-signature
@@ -55,6 +56,21 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
   def add_resource_type_object(v = %__MODULE__{target_scope: :account}),
     do: v |> add_to(:resource_type, :object)
 
+
+  @resource_map %{
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/constructing-a-service-sas#specifying-the-signed-resource-blob-service-only
+    container: "c",
+    blob: "b",
+    # https://docs.microsoft.com/en-us/rest/api/storageservices/constructing-a-service-sas#specifying-the-signed-resource-file-service-only
+    share: "s",
+    file: "f"
+  }
+
+  def add_resource_blob_container(v = %__MODULE__{}), do: v |> add_to(:resource, :container)
+
+  def add_resource_blob_blob(v = %__MODULE__{}), do: v |> add_to(:resource, :blob)
+
+
   @permissions_map %{
     read: "r",
     write: "w",
@@ -105,7 +121,7 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
       :service_version -> {"sv", value}
       :start_time -> {"st", value |> as_time()}
       :expiry_time -> {"se", value |> as_time()}
-      :resource -> {"sr", value}
+      :resource -> {"sr", value |> set_to_string(@resource_map)}
       :ip_range -> {"sip", value}
       :protocol -> {"spr", value}
       :services -> {"ss", value |> set_to_string(@services_map)}
@@ -173,7 +189,32 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
 
   def demo() do
     sas1()
-    |> sign(%Storage{account_name: "foo", account_key: "hjkl"})
+    |> sign(%Storage{
+      cloud_environment_suffix: "core.windows.net",
+      account_name: "SAMPLE_STORAGE_ACCOUNT_NAME" |> System.get_env(),
+      account_key: "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env()
+    })
     |> URI.decode_query()
+  end
+
+  def d2() do
+    new()
+    |> service_version(ApiVersion.get_api_version(:storage))
+    |> for_storage_account()
+    |> add_service_blob()
+    |> add_resource_type_container()
+    |> add_resource_blob_container()
+    |> add_permission_read()
+    |> add_permission_process()
+    |> add_permission_list()
+    |> start_time(Timex.now())
+    |> expiry_time(Timex.now()
+    |> Timex.add(Timex.Duration.from_days(100)))
+    |> sign(%Storage{
+          cloud_environment_suffix: "core.windows.net",
+          account_name: "SAMPLE_STORAGE_ACCOUNT_NAME" |> System.get_env(),
+          account_key: "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env()
+        }
+      )
   end
 end
