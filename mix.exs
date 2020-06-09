@@ -21,8 +21,9 @@ defmodule ExMicrosoftAzureStorage.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ibrowse, "~> 4.4"},
-      {:tesla, "~> 0.8"},
+      {:hackney, "~> 1.16"},
+      {:jason, "~> 1.0"},
+      {:tesla, "~> 1.3"},
       {:poison, ">= 1.0.0"},
       {:sweet_xml, "~> 0.6.5"},
       {:xml_builder, "~> 2.1"},

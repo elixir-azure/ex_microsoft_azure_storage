@@ -28,9 +28,9 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   # request |> Map.update!(:headers, &Map.merge(&1, headers))
   def add_header(request = %{headers: headers}, k, v) when headers != nil,
-    do: request |> Map.put(:headers, headers |> Map.put(k, v))
+    do: request |> Map.put(:headers, [{k, v} | headers])
 
-  def add_header(request, k, v), do: request |> Map.put(:headers, %{k => v})
+  def add_header(request, k, v), do: request |> Map.put(:headers, [{k, v}])
 
   @prefix_x_ms_meta "x-ms-meta-"
 
@@ -111,30 +111,29 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   defp primary(account_name), do: account_name |> String.replace("-secondary", "")
 
-  defp canonicalized_headers(headers = %{}),
-    do:
-      headers
-      |> Enum.into([])
-      |> Enum.map(fn {k, v} -> {k |> String.downcase(), v} end)
-      |> Enum.filter(fn {k, _} -> k |> String.starts_with?("x-ms-") end)
-      |> Enum.sort()
-      |> Enum.map(fn {k, v} -> "#{k}:#{v}" end)
-      |> Enum.join("\n")
+  defp canonicalized_headers(headers) do
+    headers
+    |> Enum.map(fn {k, v} -> {k |> String.downcase(), v} end)
+    |> Enum.filter(fn {k, _} -> k |> String.starts_with?("x-ms-") end)
+    |> Enum.sort()
+    |> Enum.map(fn {k, v} -> "#{k}:#{v}" end)
+    |> Enum.join("\n")
+  end
 
-  def remove_empty_headers(request = %{headers: headers = %{}}) do
+  def remove_empty_headers(request = %{headers: headers}) when is_list(headers) do
     new_headers =
       headers
-      |> Enum.into([])
       |> Enum.filter(fn {_k, v} -> v != nil && String.length(v) > 0 end)
-      |> Enum.into(%{})
 
     request
     |> Map.put(:headers, new_headers)
   end
 
   defp get_header(headers, name) do
-    headers
-    |> Map.get(name)
+    case for {k, v} <- headers, k == name, do: v do
+      [result] -> result
+      [] -> nil
+    end
   end
 
   defp protect(
@@ -144,7 +143,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
            method: method,
            url: url,
            query: query,
-           headers: headers = %{},
+           headers: headers,
            storage_context:
              storage_context = %Storage{
                is_development_factory: is_development_factory,
@@ -347,13 +346,9 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
               is_function(transform, 1) do
     http_header = http_header |> String.downcase()
 
-    if response.headers |> Map.has_key?(http_header) do
-      case response.headers[http_header] do
-        nil -> response
-        val -> response |> Map.put(key_to_set, val |> transform.())
-      end
-    else
-      response
+    case get_header(response.headers, http_header) do
+      nil -> response
+      val -> response |> Map.put(key_to_set, val |> transform.())
     end
   end
 

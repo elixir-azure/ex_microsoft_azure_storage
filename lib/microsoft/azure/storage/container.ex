@@ -74,10 +74,10 @@ defmodule Microsoft.Azure.Storage.Container do
       |> sign_and_call(:blob_service)
 
     case response do
-      %{status: status} when 400 <= status and status < 500 ->
+      {:error, %{status: status}} when 400 <= status and status < 500 ->
         {:error, response |> create_error_response()}
 
-      %{status: 200} ->
+      {:ok, %{status: 200} = response} ->
         {:ok,
          response
          |> create_success_response(xml_body_parser: &Responses.list_containers_response/0)}

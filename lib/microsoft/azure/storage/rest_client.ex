@@ -1,7 +1,7 @@
 defmodule Microsoft.Azure.Storage.RestClient do
   use Tesla
 
-  adapter(:ibrowse)
+  adapter Tesla.Adapter.Hackney
 
   def proxy_middleware() do
     case System.get_env("http_proxy") do
@@ -32,7 +32,7 @@ defmodule Microsoft.Azure.Storage.RestClient do
       proxy_middleware()
     ]
     |> Enum.filter(&(&1 != nil))
-    |> Tesla.build_client()
+    |> Tesla.client()
   end
 
   def new(base_url, headers) when is_binary(base_url) and is_map(headers) do
@@ -42,6 +42,6 @@ defmodule Microsoft.Azure.Storage.RestClient do
       proxy_middleware()
     ]
     |> Enum.filter(&(&1 != nil))
-    |> Tesla.build_client()
+    |> Tesla.client()
   end
 end
