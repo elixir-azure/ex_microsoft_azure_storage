@@ -43,7 +43,7 @@ defmodule Microsoft.Azure.Storage do
         :table_service -> 10002
       end
 
-    %URI{scheme: "http", host: "127.0.0.1", port: port, path: context.account_name}
+    %URI{scheme: "http", host: "127.0.0.1", port: port, path: "/" <> context.account_name}
     |> URI.to_string()
   end
 
