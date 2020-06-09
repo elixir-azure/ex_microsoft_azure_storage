@@ -247,6 +247,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> protect()
     |> Enum.into([])
     |> (&RestClient.request(connection, &1)).()
+    |> elem(1)
   end
 
   def add_missing(map, key, value) do

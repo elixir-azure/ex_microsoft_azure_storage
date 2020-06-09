@@ -15,6 +15,8 @@ defmodule Microsoft.Azure.Storage.Container do
   defmodule Responses do
     def list_containers_response(),
       do: [
+        max_results: ~x"/EnumerationResults/MaxResults/text()"s,
+        next_marker: ~x"/EnumerationResults/NextMarker/text()"s,
         containers: [
           ~x"/EnumerationResults/Containers/Container"l,
           name: ~x"./Name/text()"s,
@@ -74,10 +76,10 @@ defmodule Microsoft.Azure.Storage.Container do
       |> sign_and_call(:blob_service)
 
     case response do
-      {:error, %{status: status}} when 400 <= status and status < 500 ->
+      %{status: status} when 400 <= status and status < 500 ->
         {:error, response |> create_error_response()}
 
-      {:ok, %{status: 200} = response} ->
+      %{status: 200} ->
         {:ok,
          response
          |> create_success_response(xml_body_parser: &Responses.list_containers_response/0)}
