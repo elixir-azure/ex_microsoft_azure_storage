@@ -9,11 +9,11 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def url(request, u), do: request |> Map.put_new(:url, u)
 
-  def body(request, body),
-    do:
-      request
-      |> add_header("Content-Length", "#{body |> byte_size()}")
-      |> Map.put(:body, body)
+  def body(request, body) do
+    request
+    |> add_header("Content-Length", "#{body |> byte_size()}")
+    |> Map.put(:body, body)
+  end
 
   def add_header_content_md5(request) do
     body = request |> Map.get(:body)

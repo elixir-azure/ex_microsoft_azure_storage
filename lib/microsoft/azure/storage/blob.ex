@@ -99,7 +99,7 @@ defmodule Microsoft.Azure.Storage.Blob do
   """
 
   defp serialize_block_list(block_list),
-    do: @template_block_list |> EEx.eval_string(assigns: [block_list: block_list])
+    do: @template_block_list |> EEx.eval_string(assigns: [block_list: block_list]) |> to_string()
 
   defp deserialize_block_list(xml_body) do
     deserialize_block = fn node ->

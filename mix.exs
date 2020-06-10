@@ -7,7 +7,18 @@ defmodule ExMicrosoftAzureStorage.MixProject do
       version: "0.1.0",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
+      dialyzer: dialyzer(),
       deps: deps()
+    ]
+  end
+
+  def dialyzer do
+    # Dialyzer will emit a warning when the name of the plt file is set
+    # as people misused it in the past. Without setting a name caching of
+    # this file is much more trickier, so we still use this functionality.
+    [
+      plt_file: {:no_warn, "priv/dialyzer/dialyzer.plt"},
+      plt_add_apps: [:eex, :mix]
     ]
   end
 
@@ -21,6 +32,7 @@ defmodule ExMicrosoftAzureStorage.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:dialyxir, "~> 1.0", runtime: false, only: :dev},
       {:hackney, "~> 1.16"},
       {:jason, "~> 1.0"},
       {:tesla, "~> 1.3"},
