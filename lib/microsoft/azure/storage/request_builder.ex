@@ -239,6 +239,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       |> RestClient.new()
 
     request
+    |> add_header_if(request.method == :put, "Content-Type", "application/octet-stream")
     |> add_header("x-ms-date", DateTimeUtils.utc_now())
     |> add_header("x-ms-version", ApiVersion.get_api_version(:storage))
     |> remove_empty_headers()

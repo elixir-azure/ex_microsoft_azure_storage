@@ -41,7 +41,6 @@ defmodule Microsoft.Azure.Storage.Blob do
       # |> to_block_id())
       |> add_param(:query, :blockid, block_id)
       |> body(content)
-      |> add_header("Content-Type", "application/octet-stream")
       |> add_header_content_md5()
       |> sign_and_call(:blob_service)
 
@@ -75,7 +74,6 @@ defmodule Microsoft.Azure.Storage.Blob do
       |> url("/#{container_name}/#{blob_name}")
       |> add_param(:query, :comp, "blocklist")
       |> body(block_list |> serialize_block_list())
-      |> add_header("Content-Type", "application/octet-stream")
       |> sign_and_call(:blob_service)
 
     case response do
