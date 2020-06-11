@@ -34,9 +34,9 @@ defmodule ExMicrosoftAzureStorage.MixProject do
     [
       {:dialyxir, "~> 1.0", runtime: false, only: :dev},
       {:hackney, "~> 1.16"},
-      {:jason, "~> 1.0"},
       {:tesla, "~> 1.3"},
-      {:poison, ">= 1.0.0"},
+      {:poison, ">= 1.0.0", optional: true},
+      {:jason, "~> 1.1", optional: true},
       {:sweet_xml, "~> 0.6.5"},
       {:xml_builder, "~> 2.1"},
       {:named_args, "~> 0.1.1"},
