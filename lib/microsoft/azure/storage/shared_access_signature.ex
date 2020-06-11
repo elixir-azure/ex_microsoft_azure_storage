@@ -14,6 +14,7 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
     :permissions,
     :start_time,
     :expiry_time,
+    :canonicalized_resource,
     :resource,
     :ip_range,
     :protocol
@@ -77,29 +78,18 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
     update: "u",
     process: "p"
   }
-  def add_permission_read(v = %__MODULE__{target_scope: :account}),
-    do: v |> add_to(:permissions, :read)
+  def add_permission_read(v = %__MODULE__{}), do: add_to(v, :permissions, :read)
+  def add_permission_write(v = %__MODULE__{}), do: add_to(v, :permissions, :write)
+  def add_permission_delete(v = %__MODULE__{}), do: add_to(v, :permissions, :delete)
+  def add_permission_list(v = %__MODULE__{}), do: add_to(v, :permissions, :list)
+  def add_permission_add(v = %__MODULE__{}), do: add_to(v, :permissions, :add)
+  def add_permission_create(v = %__MODULE__{}), do: add_to(v, :permissions, :create)
+  def add_permission_update(v = %__MODULE__{}), do: add_to(v, :permissions, :update)
+  def add_permission_process(v = %__MODULE__{}), do: add_to(v, :permissions, :process)
 
-  def add_permission_write(v = %__MODULE__{target_scope: :account}),
-    do: v |> add_to(:permissions, :write)
-
-  def add_permission_delete(v = %__MODULE__{target_scope: :account}),
-    do: v |> add_to(:permissions, :delete)
-
-  def add_permission_list(v = %__MODULE__{target_scope: :account}),
-    do: v |> add_to(:permissions, :list)
-
-  def add_permission_add(v = %__MODULE__{target_scope: :account}),
-    do: v |> add_to(:permissions, :add)
-
-  def add_permission_create(v = %__MODULE__{target_scope: :account}),
-    do: v |> add_to(:permissions, :create)
-
-  def add_permission_update(v = %__MODULE__{target_scope: :account}),
-    do: v |> add_to(:permissions, :update)
-
-  def add_permission_process(v = %__MODULE__{target_scope: :account}),
-    do: v |> add_to(:permissions, :process)
+  def add_canonicalized_resource(v = %__MODULE__{}, resource_name) do
+    %{v | canonicalized_resource: resource_name}
+  end
 
   defp as_time(t), do: t |> Timex.format!("{YYYY}-{0M}-{0D}T{0h24}:{0m}:{0s}Z")
 
@@ -117,6 +107,7 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
       :service_version -> {"sv", value}
       :start_time -> {"st", value |> as_time()}
       :expiry_time -> {"se", value |> as_time()}
+      :canonicalized_resource -> {"cr", value}
       :resource -> {"sr", value |> set_to_string(@resource_map)}
       :ip_range -> {"sip", value}
       :protocol -> {"spr", value}
@@ -125,6 +116,41 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
       :permissions -> {"sp", value |> set_to_string(@permissions_map)}
       _ -> {nil, nil}
     end
+  end
+
+  defp string_to_sign(values, :blob) do
+    [
+      values |> Map.get("sp", ""),
+      values |> Map.get("st", ""),
+      values |> Map.get("se", ""),
+      values |> Map.get("cr", ""),
+      "",
+      values |> Map.get("sip", ""),
+      values |> Map.get("spr", ""),
+      values |> Map.get("sv", ""),
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+    |> Enum.join("\n")
+  end
+
+  defp string_to_sign(values, _) do
+    [
+      account_name,
+      values |> Map.get("sp", ""),
+      values |> Map.get("ss", ""),
+      values |> Map.get("srt", ""),
+      values |> Map.get("st", ""),
+      values |> Map.get("se", ""),
+      values |> Map.get("sip", ""),
+      values |> Map.get("spr", ""),
+      values |> Map.get("sv", ""),
+      ""
+    ]
+    |> Enum.join("\n")
   end
 
   def sign(
@@ -141,20 +167,7 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
       |> Enum.filter(fn {_, val} -> val != nil end)
       |> Map.new()
 
-    stringToSign =
-      [
-        account_name,
-        values |> Map.get("sp", ""),
-        values |> Map.get("ss", ""),
-        values |> Map.get("srt", ""),
-        values |> Map.get("st", ""),
-        values |> Map.get("se", ""),
-        values |> Map.get("sip", ""),
-        values |> Map.get("spr", ""),
-        values |> Map.get("sv", ""),
-        ""
-      ]
-      |> Enum.join("\n")
+    stringToSign = string_to_sign(values, target_scope)
 
     signature =
       :crypto.hmac(:sha256, account_key |> Base.decode64!(), stringToSign)
@@ -162,6 +175,7 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
 
     values
     |> Map.put("sig", signature)
+    |> Map.drop(["cr"])
     |> URI.encode_query()
   end
 end
