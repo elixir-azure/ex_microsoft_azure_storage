@@ -118,7 +118,7 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
     end
   end
 
-  defp string_to_sign(values, :blob) do
+  defp string_to_sign(values, _account_name, :blob) do
     [
       values |> Map.get("sp", ""),
       values |> Map.get("st", ""),
@@ -137,7 +137,7 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
     |> Enum.join("\n")
   end
 
-  defp string_to_sign(values, _) do
+  defp string_to_sign(values, account_name, _) do
     [
       account_name,
       values |> Map.get("sp", ""),
@@ -167,7 +167,7 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
       |> Enum.filter(fn {_, val} -> val != nil end)
       |> Map.new()
 
-    stringToSign = string_to_sign(values, target_scope)
+    stringToSign = string_to_sign(values, account_name, target_scope)
 
     signature =
       :crypto.hmac(:sha256, account_key |> Base.decode64!(), stringToSign)
