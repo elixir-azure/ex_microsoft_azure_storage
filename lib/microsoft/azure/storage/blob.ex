@@ -1,4 +1,5 @@
 defmodule Microsoft.Azure.Storage.Blob do
+  require Logger
   import SweetXml
   use NamedArgs
   # import SweetXml
@@ -204,13 +205,13 @@ defmodule Microsoft.Azure.Storage.Blob do
           |> to_block_id()
 
         if !(existing_block_ids |> Map.has_key?(block_id)) do
-          IO.puts("Start to upload block #{i}")
+          Logger.debug("Start to upload block #{i}")
 
           {:ok, _} = blob |> put_block(block_id, content)
 
           add_block.(block_id, content)
 
-          IO.puts("#{100 * uploaded_bytes.() / size}% (finished upload of #{i}")
+          Logger.debug("#{100 * uploaded_bytes.() / size}% (finished upload of #{i}")
         end
       end,
       max_concurrency: max_concurrency,
