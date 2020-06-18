@@ -181,56 +181,65 @@ defmodule Microsoft.Azure.Storage.Blob do
 
           committed_blocks
           |> Enum.reduce(a, fn %{name: name, size: size}, map -> map |> Map.put(name, size) end)
+
+        {:error, error} ->
+          {:error, error}
       end
 
-    {:ok, block_list_pid} = Agent.start_link(fn -> existing_block_ids end)
+    case existing_block_ids do
+      {:error, error} ->
+        {:error, error}
 
-    add_block = fn block_id, content ->
-      block_list_pid
-      |> Agent.update(&Map.put(&1, block_id, byte_size(content)))
-    end
+      _ ->
+        {:ok, block_list_pid} = Agent.start_link(fn -> existing_block_ids end)
 
-    uploaded_bytes = fn ->
-      block_list_pid
-      |> Agent.get(&(&1 |> Map.values() |> Enum.reduce(0, fn a, b -> a + b end)))
-    end
-
-    filename
-    |> File.stream!([:read_ahead, :binary], block_size)
-    |> Stream.zip(1..50_000)
-    |> Task.async_stream(
-      fn {content, i} ->
-        block_id =
-          i
-          |> to_block_id()
-
-        if !(existing_block_ids |> Map.has_key?(block_id)) do
-          Logger.debug("Start to upload block #{i}")
-
-          {:ok, _} = blob |> put_block(block_id, content)
-
-          add_block.(block_id, content)
-
-          Logger.debug("#{100 * uploaded_bytes.() / size}% (finished upload of #{i}")
+        add_block = fn block_id, content ->
+          block_list_pid
+          |> Agent.update(&Map.put(&1, block_id, byte_size(content)))
         end
-      end,
-      max_concurrency: max_concurrency,
-      ordered: true,
-      timeout: :infinity
-    )
-    |> Enum.to_list()
 
-    in_storage =
-      block_list_pid
-      |> Agent.get(&(&1 |> Map.keys() |> Enum.into([])))
+        uploaded_bytes = fn ->
+          block_list_pid
+          |> Agent.get(&(&1 |> Map.values() |> Enum.reduce(0, fn a, b -> a + b end)))
+        end
 
-    block_ids =
-      1..50_000
-      |> Enum.map(&to_block_id/1)
-      |> Enum.filter(&(&1 in in_storage))
+        filename
+        |> File.stream!([:read_ahead, :binary], block_size)
+        |> Stream.zip(1..50_000)
+        |> Task.async_stream(
+          fn {content, i} ->
+            block_id =
+              i
+              |> to_block_id()
 
-    blob
-    |> put_block_list(block_ids)
+            if !(existing_block_ids |> Map.has_key?(block_id)) do
+              Logger.debug("Start to upload block #{i}")
+
+              {:ok, _} = blob |> put_block(block_id, content)
+
+              add_block.(block_id, content)
+
+              Logger.debug("#{100 * uploaded_bytes.() / size}% (finished upload of #{i}")
+            end
+          end,
+          max_concurrency: max_concurrency,
+          ordered: true,
+          timeout: :infinity
+        )
+        |> Enum.to_list()
+
+        in_storage =
+          block_list_pid
+          |> Agent.get(&(&1 |> Map.keys() |> Enum.into([])))
+
+        block_ids =
+          1..50_000
+          |> Enum.map(&to_block_id/1)
+          |> Enum.filter(&(&1 in in_storage))
+
+        blob
+        |> put_block_list(block_ids)
+    end
   end
 
   def delete_blob(
