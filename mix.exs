@@ -18,7 +18,7 @@ defmodule ExMicrosoftAzureStorage.MixProject do
     # this file is much more trickier, so we still use this functionality.
     [
       plt_file: {:no_warn, "priv/dialyzer/dialyzer.plt"},
-      plt_add_apps: [:eex, :mix]
+      plt_add_apps: [:eex, :mix, :jason]
     ]
   end
 

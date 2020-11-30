@@ -260,15 +260,6 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     end
   end
 
-  def decode(%Tesla.Env{status: 200, body: body}), do: @json_library.decode(body)
-  def decode(response), do: {:error, response}
-  def decode(%Tesla.Env{status: 200} = env, false), do: {:ok, env}
-
-  def decode(%Tesla.Env{status: 200, body: body}, struct),
-    do: @json_library.decode(body, as: struct)
-
-  def decode(response, _struct), do: {:error, response}
-
   defmodule Responses do
     def error_response(),
       do: [

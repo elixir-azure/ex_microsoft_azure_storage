@@ -158,6 +158,7 @@ defmodule Microsoft.Azure.Storage.Blob do
     end
   end
 
+  @spec upload_file(Container.t(), String.t()) :: {:ok, map} | {:error, map}
   def upload_file(container = %Container{}, filename) do
     mega_byte = 1024 * 1024
     block_size = 4 * mega_byte
