@@ -159,11 +159,14 @@ defmodule Microsoft.Azure.Storage.Blob do
   end
 
   @spec upload_file(Container.t(), String.t()) :: {:ok, map} | {:error, map}
-  def upload_file(container = %Container{}, filename) do
+  def upload_file(container = %Container{}, filename, blob_name \\ nil) do
     mega_byte = 1024 * 1024
     block_size = 4 * mega_byte
     max_concurrency = 3
-    blob_name = String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
+
+    blob_name =
+      blob_name || String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
+
     blob = container |> __MODULE__.new(blob_name)
 
     %{size: size} = File.stat!(filename)
