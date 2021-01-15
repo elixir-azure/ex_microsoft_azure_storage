@@ -181,50 +181,57 @@ defmodule Microsoft.Azure.Storage.Blob do
   end
 
   defp upload_async(blob, filename) do
-    results =
-      filename
-      |> File.stream!([], @max_block_size)
-      |> Stream.zip(1..50_000)
-      |> Task.async_stream(
-        fn {content, i} ->
-          block_id = to_block_id(i)
-
-          case put_block(blob, block_id, content) do
-            {:ok, _} ->
-              block_id
-
-            {:error, %{error_code: error_code}} ->
-              {:error, error_code}
-          end
-        end,
-        max_concurrency: @max_concurrency,
-        ordered: true,
-        timeout: :infinity
-      )
-      |> Enum.to_list()
-
-    storage_result =
-      results
-      |> Enum.reduce_while({:ok, []}, fn
-        {_, {:error, reason}}, {_status, _ids} ->
-          {:halt, {:error, reason}}
-
-        {_, id}, {status, ids} ->
-          {:cont, {status, [id | ids]}}
-      end)
-
-    case storage_result do
-      {:ok, in_storage} ->
-        block_ids =
-          1..50_000
-          |> Enum.map(&to_block_id/1)
-          |> Enum.filter(&(&1 in in_storage))
-
-        put_block_list(blob, block_ids)
-
+    blob
+    |> upload_stream(filename)
+    |> stream_to_block_ids()
+    |> case do
       {:error, _reason} = err ->
         err
+      {:ok, ids} ->
+        commit_block_ids(blob, ids)
     end
+  end
+
+  defp upload_stream(blob, filename) do
+    filename
+    |> File.stream!([], @max_block_size)
+    |> Stream.zip(1..50_000)
+    |> Task.async_stream(
+      fn {content, i} ->
+        block_id = to_block_id(i)
+
+        case put_block(blob, block_id, content) do
+          {:ok, _} ->
+            block_id
+
+          {:error, %{error_code: error_code}} ->
+            {:error, error_code}
+        end
+      end,
+      max_concurrency: @max_concurrency,
+      ordered: true,
+      timeout: :infinity
+    )
+    |> Enum.to_list()
+  end
+
+  defp stream_to_block_ids(results) do
+    Enum.reduce_while(results, {:ok, []}, fn
+      {_, {:error, reason}}, {_status, _ids} ->
+        {:halt, {:error, reason}}
+
+      {_, id}, {status, ids} ->
+        {:cont, {status, [id | ids]}}
+    end)
+  end
+
+  defp commit_block_ids(blob, ids) do
+    block_ids =
+      1..50_000
+      |> Enum.map(&to_block_id/1)
+      |> Enum.filter(&(&1 in ids))
+
+    put_block_list(blob, block_ids)
   end
 
   def delete_blob(
