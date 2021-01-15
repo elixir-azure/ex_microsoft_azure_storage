@@ -7,13 +7,16 @@ defmodule Microsoft.Azure.Storage.Blob do
   alias Microsoft.Azure.Storage.{Container}
 
   @enforce_keys [:container, :blob_name]
+  @max_concurrency 3
+  @mega_byte 1024 * 1024
+  @max_block_size 4 * @mega_byte
+  @max_block_size_100MB 100 * @mega_byte
+
   defstruct [:container, :blob_name]
 
   def new(container = %Container{}, blob_name)
       when is_binary(blob_name),
       do: %__MODULE__{container: container, blob_name: blob_name}
-
-  @max_block_size_100MB 104_857_600
 
   def to_block_id(block_id) when is_binary(block_id), do: block_id
   def to_block_id(block_id) when is_integer(block_id), do: <<block_id::120>> |> Base.encode64()
@@ -178,13 +181,9 @@ defmodule Microsoft.Azure.Storage.Blob do
   end
 
   defp upload_async(blob, filename) do
-    mega_byte = 1024 * 1024
-    block_size = 4 * mega_byte
-    max_concurrency = 3
-
     results =
       filename
-      |> File.stream!([], block_size)
+      |> File.stream!([], @max_block_size)
       |> Stream.zip(1..50_000)
       |> Task.async_stream(
         fn {content, i} ->
@@ -198,7 +197,7 @@ defmodule Microsoft.Azure.Storage.Blob do
               {:error, error_code}
           end
         end,
-        max_concurrency: max_concurrency,
+        max_concurrency: @max_concurrency,
         ordered: true,
         timeout: :infinity
       )
