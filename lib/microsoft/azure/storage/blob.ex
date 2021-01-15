@@ -15,7 +15,6 @@ defmodule Microsoft.Azure.Storage.Blob do
 
   @max_block_size_100MB 104_857_600
 
-  # |> Base.encode64()
   def to_block_id(block_id) when is_binary(block_id), do: block_id
   def to_block_id(block_id) when is_integer(block_id), do: <<block_id::120>> |> Base.encode64()
 
@@ -159,87 +158,73 @@ defmodule Microsoft.Azure.Storage.Blob do
   end
 
   @spec upload_file(Container.t(), String.t()) :: {:ok, map} | {:error, map}
-  def upload_file(container = %Container{}, filename, blob_name \\ nil) do
+  def upload_file(container = %Container{}, source_path, blob_name \\ nil) do
+    container
+    |> to_blob(source_path, blob_name)
+    |> upload_async(source_path)
+  end
+
+  defp to_blob(container, source_path, nil) do
+    target_filename =
+      source_path
+      |> Path.basename()
+      |> URI.encode()
+
+    to_blob(container, source_path, target_filename)
+  end
+
+  defp to_blob(container, _source_filename, target_filename) do
+    __MODULE__.new(container, target_filename)
+  end
+
+  defp upload_async(blob, filename) do
     mega_byte = 1024 * 1024
     block_size = 4 * mega_byte
     max_concurrency = 3
 
-    blob_name =
-      blob_name || String.replace(filename, Path.dirname(filename) <> "/", "") |> URI.encode()
+    results =
+      filename
+      |> File.stream!([], block_size)
+      |> Stream.zip(1..50_000)
+      |> Task.async_stream(
+        fn {content, i} ->
+          block_id = to_block_id(i)
 
-    blob = container |> __MODULE__.new(blob_name)
+          case put_block(blob, block_id, content) do
+            {:ok, _} ->
+              block_id
 
-    existing_block_ids =
-      case blob |> get_block_list(:all) do
-        {:error, %{status: 404}} ->
-          %{}
+            {:error, %{error_code: error_code}} ->
+              {:error, error_code}
+          end
+        end,
+        max_concurrency: max_concurrency,
+        ordered: true,
+        timeout: :infinity
+      )
+      |> Enum.to_list()
 
-        {:ok, %{uncommitted_blocks: uncommitted_blocks, committed_blocks: committed_blocks}} ->
-          a =
-            uncommitted_blocks
-            |> Enum.reduce(%{}, fn %{name: name, size: size}, map ->
-              map |> Map.put(name, size)
-            end)
+    storage_result =
+      results
+      |> Enum.reduce_while({:ok, []}, fn
+        {_, {:error, reason}}, {_status, _ids} ->
+          {:halt, {:error, reason}}
 
-          committed_blocks
-          |> Enum.reduce(a, fn %{name: name, size: size}, map -> map |> Map.put(name, size) end)
+        {_, id}, {status, ids} ->
+          {:cont, {status, [id | ids]}}
+      end)
 
-        {:error, error} ->
-          {:error, error}
-      end
+    case storage_result do
+      {:ok, in_storage} ->
+        block_ids =
+          1..50_000
+          |> Enum.map(&to_block_id/1)
+          |> Enum.filter(&(&1 in in_storage))
 
-    case existing_block_ids do
-      {:error, error} ->
-        {:error, error}
+        put_block_list(blob, block_ids)
 
-      _ ->
-        results =
-          filename
-          |> File.stream!([], block_size)
-          |> Stream.zip(1..50_000)
-          |> Task.async_stream(
-            fn {content, i} ->
-              block_id = to_block_id(i)
-
-              if !(existing_block_ids |> Map.has_key?(block_id)) do
-                case put_block(blob, block_id, content) do
-                  {:ok, _} ->
-                    block_id
-
-                  {:error, %{error_code: error_code}} ->
-                    {:error, error_code}
-                end
-              end
-            end,
-            max_concurrency: max_concurrency,
-            ordered: true,
-            timeout: :infinity
-          )
-          |> Enum.to_list()
-
-        storage_result =
-          results
-          |> Enum.reduce_while({:ok, []}, fn
-            {_, {:error, reason}}, {_status, _ids} ->
-              {:halt, {:error, reason}}
-
-            {_, id}, {status, ids} ->
-              {:cont, {status, [id | ids]}}
-          end)
-
-        case storage_result do
-          {:ok, in_storage} ->
-            block_ids =
-              1..50_000
-              |> Enum.map(&to_block_id/1)
-              |> Enum.filter(&(&1 in in_storage))
-
-            put_block_list(blob, block_ids)
-
-          {:error, _reason} = err ->
-            err
-        end
-
+      {:error, _reason} = err ->
+        err
     end
   end
 
