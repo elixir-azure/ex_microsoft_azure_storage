@@ -8,6 +8,7 @@ defmodule Microsoft.Azure.Storage.Blob do
 
   @enforce_keys [:container, :blob_name]
   @max_concurrency 3
+  @max_number_of_blocks 50_000
   @mega_byte 1024 * 1024
   @max_block_size 4 * @mega_byte
   @max_block_size_100MB 100 * @mega_byte
@@ -195,7 +196,7 @@ defmodule Microsoft.Azure.Storage.Blob do
   defp upload_stream(blob, filename) do
     filename
     |> File.stream!([], @max_block_size)
-    |> Stream.zip(1..50_000)
+    |> Stream.zip(1..@max_number_of_blocks)
     |> Task.async_stream(
       fn {content, i} ->
         block_id = to_block_id(i)
@@ -227,7 +228,7 @@ defmodule Microsoft.Azure.Storage.Blob do
 
   defp commit_block_ids(blob, ids) do
     block_ids =
-      1..50_000
+      1..@max_number_of_blocks
       |> Enum.map(&to_block_id/1)
       |> Enum.filter(&(&1 in ids))
 
