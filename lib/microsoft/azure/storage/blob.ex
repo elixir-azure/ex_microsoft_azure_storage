@@ -205,8 +205,8 @@ defmodule Microsoft.Azure.Storage.Blob do
           {:ok, _} ->
             block_id
 
-          {:error, %{error_code: error_code}} ->
-            {:error, error_code}
+          {:error, _resp} = error ->
+            error
         end
       end,
       max_concurrency: @max_concurrency,
