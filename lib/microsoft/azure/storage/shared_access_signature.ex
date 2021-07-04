@@ -16,7 +16,6 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
     :start_time,
     :expiry_time,
     :resource,
-    :permissions,
     :ip_range,
     :protocol
   ]
@@ -56,7 +55,6 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
   def add_resource_type_object(v = %__MODULE__{target_scope: :account}),
     do: v |> add_to(:resource_type, :object)
 
-
   @resource_map %{
     # https://docs.microsoft.com/en-us/rest/api/storageservices/constructing-a-service-sas#specifying-the-signed-resource-blob-service-only
     container: "c",
@@ -69,7 +67,6 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
   def add_resource_blob_container(v = %__MODULE__{}), do: v |> add_to(:resource, :container)
 
   def add_resource_blob_blob(v = %__MODULE__{}), do: v |> add_to(:resource, :blob)
-
 
   @permissions_map %{
     read: "r",
@@ -162,7 +159,7 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
       |> IO.inspect(label: "stringToSign")
 
     signature =
-      :crypto.hmac(:sha256, account_key |> Base.decode64!(), stringToSign)
+      :crypto.mac(:hmac, :sha256, account_key |> Base.decode64!(), stringToSign)
       |> Base.encode64()
 
     values
@@ -208,13 +205,14 @@ defmodule Microsoft.Azure.Storage.SharedAccessSignature do
     |> add_permission_process()
     |> add_permission_list()
     |> start_time(Timex.now())
-    |> expiry_time(Timex.now()
-    |> Timex.add(Timex.Duration.from_days(100)))
+    |> expiry_time(
+      Timex.now()
+      |> Timex.add(Timex.Duration.from_days(100))
+    )
     |> sign(%Storage{
-          cloud_environment_suffix: "core.windows.net",
-          account_name: "SAMPLE_STORAGE_ACCOUNT_NAME" |> System.get_env(),
-          account_key: "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env()
-        }
-      )
+      cloud_environment_suffix: "core.windows.net",
+      account_name: "SAMPLE_STORAGE_ACCOUNT_NAME" |> System.get_env(),
+      account_key: "SAMPLE_STORAGE_ACCOUNT_KEY" |> System.get_env()
+    })
   end
 end
