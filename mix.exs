@@ -8,7 +8,8 @@ defmodule ExMicrosoftAzureStorage.MixProject do
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
       dialyzer: dialyzer(),
-      deps: deps()
+      deps: deps(),
+      package: package()
     ]
   end
 
@@ -19,6 +20,15 @@ defmodule ExMicrosoftAzureStorage.MixProject do
     [
       plt_file: {:no_warn, "priv/dialyzer/dialyzer.plt"},
       plt_add_apps: [:eex, :mix, :jason]
+    ]
+  end
+
+  defp package do
+    [
+      description: "Microsoft azure storage driver",
+      maintainers: ["chgeuer", "Nulian"],
+      licenses: [],
+      links: %{"GitHub" => "https://github.com/bettyblocks/ex_microsoft_azure_storage"}
     ]
   end
 
@@ -33,11 +43,12 @@ defmodule ExMicrosoftAzureStorage.MixProject do
   defp deps do
     [
       {:dialyxir, "~> 1.0", runtime: false, only: :dev},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:hackney, "~> 1.16"},
       {:tesla, "~> 1.3"},
       {:poison, ">= 1.0.0", optional: true},
       {:jason, "~> 1.1", optional: true},
-      {:sweet_xml, "~> 0.6.5"},
+      {:sweet_xml, "~> 0.6"},
       {:xml_builder, "~> 2.1"},
       {:named_args, "~> 0.1.1"},
       {:timex, "~> 3.2"}
