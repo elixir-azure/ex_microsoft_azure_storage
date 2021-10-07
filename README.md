@@ -10,7 +10,7 @@ by adding `ex_microsoft_azure_storage` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:ex_microsoft_azure_storage, app: false, github: "chgeuer/ex_microsoft_azure_storage", ref: "master"}
+    {:ex_microsoft_azure_storage, app: false, github: "elixir-azure/ex_microsoft_azure_storage", ref: "master"}
   ]
 end
 ```
