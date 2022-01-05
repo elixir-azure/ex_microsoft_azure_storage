@@ -1,3 +1,7 @@
+#DEPRECATED
+
+For azure storage use https://github.com/joeapearson/elixir-azure
+
 # ExMicrosoftAzureStorage
 
 An early prototype of an SDK to interact with Microsoft Azure Storage.
