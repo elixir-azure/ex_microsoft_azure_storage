@@ -1,4 +1,4 @@
-#DEPRECATED
+# DEPRECATED
 
 For azure storage use https://github.com/joeapearson/elixir-azure
 
