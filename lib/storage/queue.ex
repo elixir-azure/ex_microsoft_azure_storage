@@ -1,11 +1,14 @@
-defmodule Microsoft.Azure.Storage.Queue do
-  use NamedArgs
+defmodule ExMicrosoftAzureStorage.Storage.Queue do
+  @moduledoc """
+  Queue
+  """
+
   use Timex
   import SweetXml
-  import Microsoft.Azure.Storage.RequestBuilder
-  alias Microsoft.Azure.Storage
-  alias Microsoft.Azure.Storage.DateTimeUtils
+  import ExMicrosoftAzureStorage.Storage.RequestBuilder
   alias __MODULE__.Responses
+  alias ExMicrosoftAzureStorage.Storage
+  alias ExMicrosoftAzureStorage.Storage.DateTimeUtils
 
   @enforce_keys [:storage_context, :queue_name]
   defstruct [:storage_context, :queue_name]
@@ -14,10 +17,11 @@ defmodule Microsoft.Azure.Storage.Queue do
     do: %__MODULE__{storage_context: storage_context, queue_name: queue_name}
 
   defmodule Responses do
-    alias Microsoft.Azure.Storage.DateTimeUtils
+    @moduledoc false
+    alias ExMicrosoftAzureStorage.Storage.DateTimeUtils
 
-    def put_message_response(),
-      do: [
+    def put_message_response do
+      [
         message_id: ~x"/QueueMessagesList/QueueMessage/MessageId/text()"s,
         pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
         insertion_time:
@@ -30,9 +34,10 @@ defmodule Microsoft.Azure.Storage.Queue do
           ~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s
           |> transform_by(&DateTimeUtils.date_parse_rfc1123/1)
       ]
+    end
 
-    def get_message_response(),
-      do: [
+    def get_message_response do
+      [
         message_id: ~x"/QueueMessagesList/QueueMessage/MessageId/text()"s,
         pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
         insertion_time:
@@ -49,6 +54,7 @@ defmodule Microsoft.Azure.Storage.Queue do
           ~x"/QueueMessagesList/QueueMessage/MessageText/text()"s
           |> transform_by(&Base.decode64!/1)
       ]
+    end
   end
 
   def create_queue(%__MODULE__{storage_context: context, queue_name: queue_name}, opts \\ []) do
@@ -194,25 +200,15 @@ defmodule Microsoft.Azure.Storage.Queue do
       when is_binary(message) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/put-message
 
+    opts_with_default =
+      [visibilitytimeout: 0, messagettl: 0]
+      |> Keyword.merge(opts)
+      |> Enum.into(%{})
+
     %{
       visibilitytimeout: visibilitytimeout,
       messagettl: messagettl
-    } =
-      case [visibilitytimeout: 0, messagettl: 0]
-           |> Keyword.merge(opts)
-           |> Enum.into(%{}) do
-        %{
-          visibilitytimeout: visibilitytimeout,
-          messagettl: messagettl
-        }
-        when visibilitytimeout >= 0 and visibilitytimeout <= @seconds_7_days and
-               (messagettl == -1 or messagettl == 0 or
-                  (messagettl >= 1 and messagettl <= @seconds_7_days)) ->
-          %{
-            visibilitytimeout: visibilitytimeout,
-            messagettl: messagettl
-          }
-      end
+    } = visibility_timeout(opts_with_default)
 
     body = "<QueueMessage><MessageText>#{message |> Base.encode64()}</MessageText></QueueMessage>"
 
@@ -235,6 +231,25 @@ defmodule Microsoft.Azure.Storage.Queue do
          response
          |> create_success_response(xml_body_parser: &Responses.put_message_response/0)}
     end
+  end
+
+  defp visibility_timeout(%{
+         visibilitytimeout: visibilitytimeout,
+         messagettl: messagettl
+       })
+       when visibilitytimeout >= 0 and visibilitytimeout <= @seconds_7_days and
+              (messagettl == -1 or messagettl == 0 or
+                 (messagettl >= 1 and messagettl <= @seconds_7_days)) do
+    %{
+      visibilitytimeout: visibilitytimeout,
+      messagettl: messagettl
+    }
+  end
+
+  defp visibility_timeout(_) do
+    raise ArgumentError,
+      message:
+        "Invalid visibility timeout given it should be within the range of 0 - #{@seconds_7_days} seconds."
   end
 
   def get_message(%__MODULE__{storage_context: context, queue_name: queue_name}, opts \\ []) do

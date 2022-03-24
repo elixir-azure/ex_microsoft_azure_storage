@@ -1,6 +1,10 @@
-defmodule Microsoft.Azure.Storage.ContainerLease do
-  import Microsoft.Azure.Storage.RequestBuilder
-  alias Microsoft.Azure.Storage.{Container}
+defmodule ExMicrosoftAzureStorage.Storage.ContainerLease do
+  @moduledoc """
+  ContainerLease
+  """
+
+  import ExMicrosoftAzureStorage.Storage.RequestBuilder
+  alias ExMicrosoftAzureStorage.Storage.Container
 
   # "x-ms-lease-action" acquire/renew/change/release/break
   # "x-ms-lease-id"     Required for renew/change/release
@@ -41,7 +45,7 @@ defmodule Microsoft.Azure.Storage.ContainerLease do
 
   # AcquireLease TimeSpan? leaseTime, string proposedLeaseId
   def container_lease_acquire(
-        container = %Container{},
+        %Container{} = container,
         lease_duration,
         proposed_lease_id \\ nil
       )
@@ -65,7 +69,7 @@ defmodule Microsoft.Azure.Storage.ContainerLease do
 
   # RenewLease
   def container_lease_renew(
-        container = %Container{},
+        %Container{} = container,
         lease_id
       ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/lease-container
@@ -86,7 +90,7 @@ defmodule Microsoft.Azure.Storage.ContainerLease do
 
   # BreakLease   TimeSpan? breakPeriod
   def container_lease_break(
-        container = %Container{},
+        %Container{} = container,
         lease_id,
         break_period \\ -1
       )
@@ -115,7 +119,7 @@ defmodule Microsoft.Azure.Storage.ContainerLease do
 
   # ReleaseLease
   def container_lease_release(
-        container = %Container{},
+        %Container{} = container,
         lease_id
       ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/lease-container#remarks
@@ -136,7 +140,7 @@ defmodule Microsoft.Azure.Storage.ContainerLease do
 
   # ChangeLease string proposedLeaseId,
   def container_lease_change(
-        container = %Container{},
+        %Container{} = container,
         lease_id,
         proposed_lease_id
       ) do

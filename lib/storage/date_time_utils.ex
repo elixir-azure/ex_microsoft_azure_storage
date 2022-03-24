@@ -1,14 +1,18 @@
-defmodule Microsoft.Azure.Storage.DateTimeUtils do
+defmodule ExMicrosoftAzureStorage.Storage.DateTimeUtils do
+  @moduledoc """
+  DateTimeUtils
+  """
+
   use Timex
 
-  def utc_now(),
+  def utc_now,
     # https://docs.microsoft.com/en-us/rest/api/storageservices/representation-of-date-time-values-in-headers
     do:
       Timex.now()
       |> Timex.format!("{RFC1123z}")
       |> String.replace(" Z", " GMT")
 
-  # "2019-02-05T16:43:10.4730000Z" |> Microsoft.Azure.Storage.DateTimeUtils.date_parse_iso8601()
+  # "2019-02-05T16:43:10.4730000Z" |> ExMicrosoftAzureStorage.Storage.DateTimeUtils.date_parse_iso8601()
   def date_parse_iso8601(date) do
     {:ok, result, 0} = date |> DateTime.from_iso8601()
     result
@@ -23,14 +27,14 @@ defmodule Microsoft.Azure.Storage.DateTimeUtils do
       |> DateTime.to_iso8601()
       |> String.replace_trailing("Z", "0Z")
 
-  # "Tue, 05 Feb 2019 16:58:12 GMT" |> Microsoft.Azure.Storage.DateTimeUtils.date_parse_rfc1123()
+  # "Tue, 05 Feb 2019 16:58:12 GMT" |> ExMicrosoftAzureStorage.Storage.DateTimeUtils.date_parse_rfc1123()
   def date_parse_rfc1123(str) do
     Timex.parse!(str, "{RFC1123}")
   end
 
-  def to_string(timex_time),
+  def to_string_rfc1123(date_time),
     # https://docs.microsoft.com/en-us/rest/api/storageservices/representation-of-date-time-values-in-headers
     do:
-      timex_time
+      date_time
       |> Timex.format!("{WDshort}, {0D} {Mshort} {YYYY} {0h24}:{0m}:{0s} GMT")
 end

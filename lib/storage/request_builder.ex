@@ -1,11 +1,17 @@
-defmodule Microsoft.Azure.Storage.RequestBuilder do
+defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
+  @moduledoc """
+  RequestBuilder
+  """
+
   import SweetXml
-  alias Microsoft.Azure.Storage
-  alias Microsoft.Azure.Storage.{RestClient, ApiVersion, DateTimeUtils, Container}
+  import ExMicrosoftAzureStorage.Storage.Utilities, only: [to_bool: 1]
 
-  @json_library Application.get_env(:ex_microsoft_azure_storage, :json_library, Jason)
+  alias ExMicrosoftAzureStorage.Storage
+  alias ExMicrosoftAzureStorage.Storage.{ApiVersion, Container, DateTimeUtils, RestClient}
 
-  def new_azure_storage_request(storage = %Storage{}), do: %{storage_context: storage}
+  defp json_library, do: Application.get_env(:azure, :json_library, Jason)
+
+  def new_azure_storage_request(%Storage{} = storage), do: %{storage_context: storage}
 
   def method(request, m), do: request |> Map.put_new(:method, m)
 
@@ -34,9 +40,12 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
 
   def add_header(request, k, v), do: request |> Map.put(:headers, [{k, v}])
 
+  def has_header?(%{headers: headers}, k), do: List.keymember?(headers, k, 0)
+  def has_header?(_request, _k), do: false
+
   @prefix_x_ms_meta "x-ms-meta-"
 
-  def add_header_x_ms_meta(request, kvp = %{}),
+  def add_header_x_ms_meta(request, %{} = kvp),
     do:
       kvp
       |> Enum.reduce(request, fn {k, v}, r -> r |> add_header(@prefix_x_ms_meta <> k, v) end)
@@ -70,7 +79,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       &Tesla.Multipart.add_field(
         &1,
         key,
-        @json_library.encode!(value),
+        json_library().encode!(value),
         headers: [{:"Content-Type", "application/json"}]
       )
     )
@@ -118,8 +127,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> Enum.map(fn {k, v} -> {k |> String.downcase(), v} end)
     |> Enum.filter(fn {k, _} -> k |> String.starts_with?("x-ms-") end)
     |> Enum.sort()
-    |> Enum.map(fn {k, v} -> "#{k}:#{v}" end)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end)
   end
 
   def remove_empty_headers(request = %{headers: headers}) when is_list(headers) do
@@ -155,7 +163,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
          }
        )
        when is_binary(account_key) and account_key != nil do
-    canonicalizedHeaders = headers |> canonicalized_headers()
+    canonicalized_headers = headers |> canonicalized_headers()
 
     url =
       case is_development_factory do
@@ -163,7 +171,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
         _ -> url
       end
 
-    canonicalizedResource =
+    canonicalized_resource =
       case query do
         [] ->
           "/#{storage_context.account_name |> primary()}#{url}"
@@ -175,7 +183,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
              |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
       end
 
-    stringToSign =
+    string_to_sign =
       [
         method |> Atom.to_string() |> String.upcase(),
         headers |> get_header("Content-Encoding"),
@@ -189,14 +197,13 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
         headers |> get_header("If-None-Match"),
         headers |> get_header("If-Unmodified-Since"),
         headers |> get_header("Range"),
-        canonicalizedHeaders,
-        canonicalizedResource
+        canonicalized_headers,
+        canonicalized_resource
       ]
       |> Enum.join("\n")
 
     signature =
-      :hmac
-      |> :crypto.mac(:sha256, storage_context.account_key |> Base.decode64!(), stringToSign)
+      Storage.Crypto.hmac(:sha256, account_key |> Base.decode64!(), string_to_sign)
       |> Base.encode64()
 
     data
@@ -207,10 +214,10 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   end
 
   defp protect(
-         request = %{
+         %{
            storage_context: %Storage{account_key: nil, aad_token_provider: aad_token_provider},
            uri: uri
-         }
+         } = request
        ) do
     token =
       uri
@@ -241,8 +248,10 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       uri
       |> RestClient.new()
 
+    add_content_type_header? = request.method == :put && !has_header?(request, "Content-Type")
+
     request
-    |> add_header_if(request.method == :put, "Content-Type", "application/octet-stream")
+    |> add_header_if(add_content_type_header?, "Content-Type", "application/octet-stream")
     |> add_header("x-ms-date", DateTimeUtils.utc_now())
     |> add_header("x-ms-version", ApiVersion.get_api_version(:storage))
     |> remove_empty_headers()
@@ -262,7 +271,8 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   end
 
   defmodule Responses do
-    def error_response(),
+    @moduledoc false
+    def error_response,
       do: [
         error_code: ~x"/Error/Code/text()"s,
         error_message: ~x"/Error/Message/text()"s,
@@ -273,19 +283,11 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
   end
 
   def identity(x), do: x
-  def to_bool("true"), do: true
-  def to_bool("false"), do: false
-  def to_bool(_), do: false
 
-  def to_integer!(x) do
-    {i, ""} = x |> Integer.parse()
-    i
-  end
-
-  def create_error_response(response = %{}) do
+  def create_error_response(%{} = response) do
     response
     |> create_success_response(xml_body_parser: &__MODULE__.Responses.error_response/0)
-    |> Map.update!(:error_message, &String.split(&1, "\n"))
+    |> Map.update(:error_message, "", &String.split(&1, "\n"))
   end
 
   def create_success_response(response, opts \\ []) do
@@ -296,16 +298,20 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     |> Map.put(:body, response.body)
     |> copy_response_headers_into_map()
     |> copy_x_ms_meta_headers_into_map()
-    |> (fn response = %{body: body} ->
-          case opts |> Keyword.get(:xml_body_parser) do
-            nil ->
-              response
+    |> parse_body_and_update_response(opts)
+  end
 
-            xml_parser when is_function(xml_parser) ->
-              response
-              |> Map.merge(body |> xmap(xml_parser.()))
-          end
-        end).()
+  defp parse_body_and_update_response(%{body: ""} = response, _), do: response
+
+  defp parse_body_and_update_response(%{body: body} = response, opts) do
+    case opts |> Keyword.get(:xml_body_parser) do
+      nil ->
+        response
+
+      xml_parser when is_function(xml_parser) ->
+        response
+        |> Map.merge(body |> xmap(xml_parser.()))
+    end
   end
 
   @response_headers [
@@ -319,19 +325,19 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
     {"x-ms-lease-state", :x_ms_lease_state},
     {"x-ms-blob-type", :x_ms_blob_type},
     {"x-ms-lease-status", :x_ms_lease_status},
-    {"x-ms-request-server-encrypted", :x_ms_request_server_encrypted, &__MODULE__.to_bool/1},
+    {"x-ms-request-server-encrypted", :x_ms_request_server_encrypted, &to_bool/1},
     {"x-ms-delete-type-permanent", :x_ms_delete_type_permanent},
-    {"x-ms-has-immutability-policy", :x_ms_has_immutability_policy, &__MODULE__.to_bool/1},
-    {"x-ms-has-legal-hold", :x_ms_has_legal_hold, &__MODULE__.to_bool/1},
-    {"x-ms-approximate-messages-count", :x_ms_approximate_messages_count,
-     &__MODULE__.to_integer!/1},
+    {"x-ms-has-immutability-policy", :x_ms_has_immutability_policy, &to_bool/1},
+    {"x-ms-has-legal-hold", :x_ms_has_legal_hold, &to_bool/1},
+    {"x-ms-approximate-messages-count", :x_ms_approximate_messages_count, &String.to_integer/1},
     {"x-ms-error-code", :x_ms_error_code},
     {"x-ms-blob-public-access", :x_ms_blob_public_access, &Container.parse_access_level/1},
     {"x-ms-blob-cache-control", :x_ms_blob_cache_control},
-    {"x-ms-cache-control", :x_ms_cache_control}
+    {"x-ms-cache-control", :x_ms_cache_control},
+    {"x-ms-copy-status", :x_ms_copy_status}
   ]
 
-  defp copy_response_headers_into_map(response = %{}) do
+  defp copy_response_headers_into_map(%{} = response) do
     Enum.reduce(@response_headers, response, fn x, response ->
       response |> copy_response_header_into_map(x)
     end)

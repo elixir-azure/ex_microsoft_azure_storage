@@ -1,7 +1,11 @@
-defmodule Microsoft.Azure.Storage.BlobPolicy do
+defmodule ExMicrosoftAzureStorage.Storage.BlobPolicy do
+  @moduledoc """
+  BlobPolicy
+  """
+
   import SweetXml
-  import Microsoft.Azure.Storage.DateTimeUtils
-  import Microsoft.Azure.Storage.Utilities, only: [set_to_string: 2, string_to_set: 2]
+  import ExMicrosoftAzureStorage.Storage.DateTimeUtils
+  import ExMicrosoftAzureStorage.Storage.Utilities, only: [set_to_string: 2, string_to_set: 2]
   require EEx
 
   defstruct [:id, :start, :expiry, :permission]
@@ -38,9 +42,9 @@ defmodule Microsoft.Azure.Storage.BlobPolicy do
     <SignedIdentifier>
       <Id><%= policy.id %></Id>
       <AccessPolicy>
-        <Start><%= policy.start |> Microsoft.Azure.Storage.DateTimeUtils.to_string_iso8601() %></Start>
-        <Expiry><%= policy.expiry |> Microsoft.Azure.Storage.DateTimeUtils.to_string_iso8601() %></Expiry>
-        <Permission><%= policy.permission |> Microsoft.Azure.Storage.BlobPolicy.permission_serialize() %></Permission>
+        <Start><%= policy.start |> ExMicrosoftAzureStorage.Storage.DateTimeUtils.to_string_iso8601() %></Start>
+        <Expiry><%= policy.expiry |> ExMicrosoftAzureStorage.Storage.DateTimeUtils.to_string_iso8601() %></Expiry>
+        <Permission><%= policy.permission |> ExMicrosoftAzureStorage.Storage.BlobPolicy.permission_serialize() %></Permission>
       </AccessPolicy>Date
     </SignedIdentifier>
     <% end %>

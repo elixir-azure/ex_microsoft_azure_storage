@@ -1,21 +1,27 @@
-defmodule Microsoft.Azure.Storage.Container do
-  import SweetXml
-  import Microsoft.Azure.Storage.RequestBuilder
+defmodule ExMicrosoftAzureStorage.Storage.Container do
+  @moduledoc """
+  Container
+  """
 
-  alias Microsoft.Azure.Storage
-  alias Microsoft.Azure.Storage.{DateTimeUtils, BlobPolicy}
+  import SweetXml
+  import ExMicrosoftAzureStorage.Storage.RequestBuilder
+  import ExMicrosoftAzureStorage.Storage.Utilities, only: [to_bool: 1]
+
+  alias ExMicrosoftAzureStorage.Storage
+  alias ExMicrosoftAzureStorage.Storage.{BlobPolicy, DateTimeUtils}
 
   @type t :: %__MODULE__{container_name: String.t(), storage_context: map}
 
   @enforce_keys [:storage_context, :container_name]
   defstruct [:storage_context, :container_name]
 
-  def new(storage_context = %Storage{}, container_name)
+  def new(%Storage{} = storage_context, container_name)
       when is_binary(container_name),
       do: %__MODULE__{storage_context: storage_context, container_name: container_name}
 
   defmodule Responses do
-    def list_containers_response(),
+    @moduledoc false
+    def list_containers_response,
       do: [
         max_results: ~x"/EnumerationResults/MaxResults/text()"s,
         next_marker: ~x"/EnumerationResults/NextMarker/text()"s,
@@ -37,7 +43,7 @@ defmodule Microsoft.Azure.Storage.Container do
         ]
       ]
 
-    def list_blobs_response(),
+    def list_blobs_response,
       do: [
         max_results: ~x"/EnumerationResults/MaxResults/text()"s,
         next_marker: ~x"/EnumerationResults/NextMarker/text()"s,
@@ -67,7 +73,7 @@ defmodule Microsoft.Azure.Storage.Container do
       ]
   end
 
-  def list_containers(context = %Storage{}) do
+  def list_containers(%Storage{} = context) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-containers2
     response =
       context
@@ -106,6 +112,17 @@ defmodule Microsoft.Azure.Storage.Container do
         {:ok,
          response
          |> create_success_response()}
+    end
+  end
+
+  @doc """
+  Returns an existing container if found or creates a new one if not.
+  """
+  def ensure_container(container) do
+    case create_container(container) do
+      {:ok, %{status: 201} = response} -> {:ok, response}
+      {:error, %{error_code: "ContainerAlreadyExists"} = response} -> {:ok, response}
+      other -> other
     end
   end
 
@@ -180,13 +197,13 @@ defmodule Microsoft.Azure.Storage.Container do
     end
   end
 
-  def set_container_acl_public_access_off(container = %__MODULE__{}),
+  def set_container_acl_public_access_off(%__MODULE__{} = container),
     do: container |> set_container_acl(:off)
 
-  def set_container_acl_public_access_blob(container = %__MODULE__{}),
+  def set_container_acl_public_access_blob(%__MODULE__{} = container),
     do: container |> set_container_acl(:blob)
 
-  def set_container_acl_public_access_container(container = %__MODULE__{}),
+  def set_container_acl_public_access_container(%__MODULE__{} = container),
     do: container |> set_container_acl(:container)
 
   defp container_access_level_to_string(:off), do: nil

@@ -1,0 +1,1 @@
+This file is used in `blob_test.exs` to simulate the upload of a blob from a URL.

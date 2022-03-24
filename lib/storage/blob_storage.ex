@@ -1,26 +1,31 @@
-defmodule Microsoft.Azure.Storage.BlobStorage do
-  use NamedArgs
+defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
+  @moduledoc """
+  BlobStorage
+  """
 
   import SweetXml
-  import Microsoft.Azure.Storage.RequestBuilder
+  import ExMicrosoftAzureStorage.Storage.RequestBuilder
+  import ExMicrosoftAzureStorage.Storage.Utilities, only: [to_bool: 1]
 
-  alias Microsoft.Azure.Storage
   alias __MODULE__.ServiceProperties
+  alias ExMicrosoftAzureStorage.Storage
 
   defmodule Responses do
-    import Microsoft.Azure.Storage.RequestBuilder
+    @moduledoc false
+    import ExMicrosoftAzureStorage.Storage.RequestBuilder
 
-    def get_blob_service_stats_response(),
-      do: [
+    def get_blob_service_stats_response do
+      [
         geo_replication: [
           ~x"/StorageServiceStats/GeoReplication",
           status: ~x"./Status/text()"s,
           last_sync_time: ~x"./LastSyncTime/text()"s
         ]
       ]
+    end
 
-    def get_blob_service_properties_response(),
-      do: [
+    def get_blob_service_properties_response do
+      [
         logging: [
           ~x"/StorageServiceProperties/Logging",
           version: ~x"./Version/text()"s,
@@ -74,12 +79,15 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
           days: ~x"./Days/text()"I
         ]
       ]
+    end
   end
 
   defmodule ServiceProperties do
+    @moduledoc false
+
     import SweetXml
     import XmlBuilder
-    import Microsoft.Azure.Storage.RequestBuilder
+    import ExMicrosoftAzureStorage.Storage.RequestBuilder
 
     alias __MODULE__.{Logging, RetentionPolicy, Metrics, CorsRule}
 
@@ -98,9 +106,11 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> Map.update!(:hour_metrics, &Metrics.to_struct/1)
       |> Map.update!(:minute_metrics, &Metrics.to_struct/1)
       |> Map.update!(:delete_retention_policy, &RetentionPolicy.to_struct/1)
+      |> Map.update!(:cors_rules, &CorsRule.to_struct/1)
     end
 
     defmodule Logging do
+      @moduledoc false
       defstruct [:version, :delete, :read, :write, :retention_policy]
 
       def to_struct(data) do
@@ -129,7 +139,10 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
 
     defmodule RetentionPolicy do
+      @moduledoc false
       defstruct [:enabled, :days]
+
+      def to_struct(nil), do: %__MODULE__{enabled: false, days: 0}
       def to_struct(data), do: struct(__MODULE__, data)
     end
 
@@ -143,6 +156,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
 
     defmodule Metrics do
+      @moduledoc false
       defstruct [:version, :enabled, :include_apis, :retention_policy]
 
       def to_struct(data) do
@@ -190,6 +204,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
 
     defmodule CorsRule do
+      @moduledoc false
       defstruct [
         :max_age_in_seconds,
         :allowed_origins,
@@ -198,6 +213,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         :allowed_headers
       ]
 
+      def to_struct(data) when is_list(data), do: data |> Enum.map(&to_struct/1)
       def to_struct(data), do: struct(__MODULE__, data)
     end
 
@@ -242,15 +258,15 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
        ]})
     end
 
-    def parse(xml),
-      do:
-        xml
-        |> xmap(__MODULE__.storage_service_properties_parser())
-        |> Map.get(:storage_service_properties)
-        |> __MODULE__.to_struct()
+    def parse(xml) do
+      xml
+      |> xmap(__MODULE__.storage_service_properties_parser())
+      |> Map.get(:storage_service_properties)
+      |> __MODULE__.to_struct()
+    end
 
-    def storage_service_properties_parser(),
-      do: [
+    def storage_service_properties_parser do
+      [
         storage_service_properties: [
           ~x"/StorageServiceProperties",
           logging: [
@@ -300,19 +316,23 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
               ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(",")))
           ],
           default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
+          # delete_retention_policy is not present in responses from Azurite (the storage simulator)
+          # so we have to make this property optional with the `o` modifier passed to `~x`.
           delete_retention_policy: [
-            ~x"./DeleteRetentionPolicy",
+            ~x"./DeleteRetentionPolicy"o,
             enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
             days: ~x"./Days/text()"I
           ]
         ]
       ]
+    end
   end
 
-  def get_blob_service_stats(context = %Storage{}) do
+  def get_blob_service_stats(%Storage{} = context) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-stats
     response =
       context
+      |> Storage.secondary()
       |> new_azure_storage_request()
       |> method(:get)
       |> url("/")
@@ -337,7 +357,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
     end
   end
 
-  def get_blob_service_properties(context = %Storage{}) do
+  def get_blob_service_properties(%Storage{} = context) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-properties
     response =
       context
@@ -353,17 +373,19 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
         {:error, response |> create_error_response()}
 
       %{status: 200} ->
+        {_header, request_id} = response.headers |> List.keyfind("x-ms-request-id", 0)
+
         {:ok,
          %{}
          |> Map.put(:service_properties, ServiceProperties.parse(response.body))
          |> Map.put(:headers, response.headers)
          |> Map.put(:url, response.url)
          |> Map.put(:status, response.status)
-         |> Map.put(:request_id, response.headers["x-ms-request-id"])}
+         |> Map.put(:request_id, request_id)}
     end
   end
 
-  def set_blob_service_properties(context = %Storage{}, service_properties = %ServiceProperties{}) do
+  def set_blob_service_properties(%Storage{} = context, %ServiceProperties{} = service_properties) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-blob-service-properties
     response =
       context
@@ -375,7 +397,7 @@ defmodule Microsoft.Azure.Storage.BlobStorage do
       |> add_header("Content-Type", "application/xml")
       |> body(
         service_properties
-        |> Microsoft.Azure.Storage.BlobStorage.ServiceProperties.xml_blob_service_properties()
+        |> ExMicrosoftAzureStorage.Storage.BlobStorage.ServiceProperties.xml_blob_service_properties()
         |> XmlBuilder.generate(format: :none)
       )
       |> sign_and_call(:blob_service)
