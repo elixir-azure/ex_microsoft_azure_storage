@@ -3,10 +3,12 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
   Blob
   """
   require Logger
-  import SweetXml
 
   import ExMicrosoftAzureStorage.Storage.RequestBuilder
-  alias ExMicrosoftAzureStorage.Storage.{BlobProperties, Container}
+  import SweetXml
+
+  alias ExMicrosoftAzureStorage.Storage.BlobProperties
+  alias ExMicrosoftAzureStorage.Storage.Container
 
   @enforce_keys [:container, :blob_name]
   @max_concurrency 3
@@ -69,7 +71,8 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
           container: %Container{storage_context: context, container_name: container_name},
           blob_name: blob_name
         },
-        block_list
+        block_list,
+        headers \\ []
       )
       when is_list(block_list) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/put-block-list
@@ -80,6 +83,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
       |> url("/#{container_name}/#{blob_name}")
       |> add_param(:query, :comp, "blocklist")
       |> body(block_list |> serialize_block_list())
+      |> add_headers(headers)
       |> sign_and_call(:blob_service)
 
     case response do
@@ -417,11 +421,36 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
     Keyword.get(config(), :suppress_workaround_for_put_blob_from_url_warning?, false)
   end
 
-  @spec upload_file(Container.t(), String.t()) :: {:ok, map} | {:error, map}
-  def upload_file(%Container{} = container, source_path, blob_name \\ nil) do
+  @spec upload_file(Container.t(), String.t(), String.t() | nil, BlobProperties.t() | nil) ::
+          {:ok, map} | {:error, map}
+  def upload_file(
+        container,
+        source_path,
+        blob_name \\ nil,
+        blob_properties \\ nil
+      )
+
+  def upload_file(
+        %Container{} = container,
+        source_path,
+        blob_name,
+        %BlobProperties{} = blob_properties
+      ) do
+    headers =
+      blob_properties
+      |> BlobProperties.serialise()
+      |> Enum.map(&transform_set_blob_property_header/1)
+      |> Enum.filter(fn {header, _value} -> Enum.member?(@allowed_set_blob_headers, header) end)
+
     container
     |> to_blob(source_path, blob_name)
-    |> upload_async(source_path)
+    |> upload_async(source_path, headers)
+  end
+
+  def upload_file(%Container{} = container, source_path, blob_name, nil) do
+    container
+    |> to_blob(source_path, blob_name)
+    |> upload_async(source_path, [])
   end
 
   defp to_blob(container, source_path, nil) do
@@ -437,7 +466,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
     __MODULE__.new(container, target_filename)
   end
 
-  defp upload_async(blob, filename) do
+  defp upload_async(blob, filename, headers) do
     blob
     |> upload_stream(filename)
     |> stream_to_block_ids()
@@ -446,7 +475,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
         err
 
       {:ok, ids} ->
-        commit_block_ids(blob, ids)
+        commit_block_ids(blob, ids, headers)
     end
   end
 
@@ -483,13 +512,13 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
     end)
   end
 
-  defp commit_block_ids(blob, ids) do
+  defp commit_block_ids(blob, ids, headers) do
     block_ids =
       1..@max_number_of_blocks
       |> Enum.map(&to_block_id/1)
       |> Enum.filter(&(&1 in ids))
 
-    put_block_list(blob, block_ids)
+    put_block_list(blob, block_ids, headers)
   end
 
   def delete_blob(
