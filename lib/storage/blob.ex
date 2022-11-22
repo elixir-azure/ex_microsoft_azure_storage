@@ -421,7 +421,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
     Keyword.get(config(), :suppress_workaround_for_put_blob_from_url_warning?, false)
   end
 
-  @spec upload_file(Container.t(), String.t(), String.t() | nil, BlobProperties.t() | nil) ::
+  @spec upload_file(Container.t(), String.t(), String.t() | nil, map | nil) ::
           {:ok, map} | {:error, map}
   def upload_file(
         container,
@@ -434,10 +434,12 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
         %Container{} = container,
         source_path,
         blob_name,
-        %BlobProperties{} = blob_properties
-      ) do
+        blob_properties
+      )
+      when is_map(blob_properties) do
     headers =
-      blob_properties
+      BlobProperties
+      |> struct(blob_properties)
       |> BlobProperties.serialise()
       |> Enum.map(&transform_set_blob_property_header/1)
       |> Enum.filter(fn {header, _value} -> Enum.member?(@allowed_set_blob_headers, header) end)
