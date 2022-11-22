@@ -1,7 +1,7 @@
 defmodule ExMicrosoftAzureStorage.MixProject do
   use Mix.Project
 
-  @version "1.1.0"
+  @version "1.1.1"
   @repo_url "https://github.com/bettyblocks/ex_microsoft_azure_storage"
 
   def project do
