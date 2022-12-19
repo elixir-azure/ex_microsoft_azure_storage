@@ -50,6 +50,11 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
         blobs: [
           ~x"/EnumerationResults/Blobs/Blob"l,
           name: ~x"./Name/text()"s,
+          tags: [
+            ~x"./Tags/TagSet/Tag"l,
+            key: ~x"./Key/text()"s,
+            value: ~x"./Value/text()"s
+          ],
           properties: [
             ~x"./Properties",
             etag: ~x"./Etag/text()"s,
